@@ -44,12 +44,12 @@ const CAM_ASPECT = 4 / 3;
 const BASE_WIDTH = 420;
 const SCALE_FACTOR = 3; 
 
-// SINKRONISASI COLS & BARIS FORMULA: Kunci matematis grid proporsional
+// CONFIG LAYOUT GRID LAMA (KEMBALI KE FORMULA AWAL)
 const LAYOUTS = {
-  strip3: { count: 3, cols: 1, rows: 3 }, // Strip 3 foto = dipaksa 1 kolom memanjang kebawah!
-  grid4:  { count: 4, cols: 2, rows: 2 }, // Grid 4 = berjejer kotak 2x2
-  grid6:  { count: 6, cols: 2, rows: 3 }, // Grid 6 = berjejer kotak 2x3
-  grid8:  { count: 8, cols: 2, rows: 4 }, // Grid 8 = berjejer kotak 2x4
+  strip3: { count: 3, cols: 1, rows: 3 }, 
+  grid4:  { count: 4, cols: 2, rows: 2 }, 
+  grid6:  { count: 6, cols: 2, rows: 3 }, 
+  grid8:  { count: 8, cols: 2, rows: 4 }, 
   single: { count: 1, cols: 1, rows: 1 }
 };
 
@@ -161,6 +161,9 @@ async function handleShootAction() {
   if (shots.filter(Boolean).length === layout.count) buildResult(layout);
 }
 
+// ==========================================================================
+// RENDERING ENGINE CANVAS (FIX FILTER & ANTI-CRASH BANNER)
+// ==========================================================================
 function buildResult(layout) {
   const totalW = BASE_WIDTH * SCALE_FACTOR; const padX = 35 * SCALE_FACTOR; const gap = 16 * SCALE_FACTOR; const headerH = 145 * SCALE_FACTOR;
   const isCalendar = (frameSel.value === 'calendar-2026'); const footerH = (isCalendar ? 240 : 105) * SCALE_FACTOR;
@@ -180,7 +183,8 @@ function buildResult(layout) {
   ctx.fillText(`ORDER #DKV-${Math.floor(1000 + Math.random() * 9000)}`, totalW / 2, 98 * SCALE_FACTOR); ctx.fillText(`${dateStr}   ${timeStr}`, totalW / 2, 118 * SCALE_FACTOR);
   ctx.fillText('------------------------------------------', totalW / 2, 134 * SCALE_FACTOR);
 
-  let loaded = 0;
+  let loadedCount = 0;
+  const activeShots = shots.filter(Boolean);
 
   function renderReceiptFooter() {
     ctx.fillStyle = '#000000'; ctx.textAlign = 'center'; const startFooterY = headerH + actualGridH + (20 * SCALE_FACTOR);
@@ -201,8 +205,8 @@ function buildResult(layout) {
     }
   }
 
-  shots.forEach((src, i) => {
-    if (!src) return; const img = new Image();
+  activeShots.forEach((src, i) => {
+    const img = new Image();
     img.onload = () => {
       const col = i % layout.cols; const row = Math.floor(i / layout.cols);
       const x = padX + col * (cellW + gap); const y = headerH + row * (cellH + gap);
@@ -210,42 +214,41 @@ function buildResult(layout) {
       ctx.filter = (activeFilter === 'bw') ? 'grayscale(100%) contrast(140%) brightness(105%)' : 'none';
       ctx.drawImage(img, 0, 0, img.width, img.height, x, y, cellW, cellH); ctx.restore();
       ctx.strokeStyle = '#000000'; ctx.lineWidth = 2.5 * SCALE_FACTOR; ctx.strokeRect(x, y, cellW, cellH);
-      loaded++;
-      if (loaded === shots.filter(Boolean).length) {
-        renderReceiptFooter(); resultDataURL = rc.toDataURL('image/jpeg', 0.95);
+      
+      loadedCount++;
+      if (loadedCount === activeShots.length) {
+        renderReceiptFooter(); resultDataURL = rc.toDataURL('image/jpeg', 0.90);
+        printImg.src = resultDataURL; printResult.style.display = 'block';
         btnDownload.style.display = 'flex'; btnPrint.style.display = 'flex'; if (btnReset) btnReset.style.display = 'flex';
-        printImg.src = resultDataURL; printResult.style.display = 'block'; statusEl.textContent = 'Kompilasi Selesai!';
+        statusEl.textContent = 'Kompilasi Selesai!';
         
-        // MEMANGGIL GENERATOR QR BARU YANG ANTI-LAG & 100% KEBACA
+        // PANGGIL GENERATOR QR DI LUAR LOOP AGAR TERHINDAR DARI ASYNC CRASH
         generateCleanQRCode(resultDataURL);
       }
     }; img.src = src;
   });
 }
 
-// ==========================================================================
-// FIX ENGINE QR CODE: Menggunakan Online API Renggang (Pasti Kebaca)
-// ==========================================================================
 function generateCleanQRCode(base64Data) {
   const qrContainer = document.getElementById("qrcode");
   const qrWrap = document.getElementById("qr-wrap");
   if (!qrContainer || !qrWrap) return;
   
+  qrContainer.innerHTML = ""; 
   const cleanDownloadURL = window.location.origin + window.location.pathname + "#" + base64Data;
+  const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=115x115&data=${encodeURIComponent(cleanDownloadURL)}&ecc=L`;
   
-  // Menggunakan API QR Server Resmi dengan level koreksi L agar titiknya besar, longgar, dan instan di-scan HP
-  const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=${encodeURIComponent(cleanDownloadURL)}&ecc=L`;
-  
-  // Merender ke dalam HTML sebagai image tag murni
-  qrContainer.innerHTML = `<img src="${apiUrl}" alt="QR Link Unduhan" style="display:block; width:110px; height:110px; margin:0 auto;">`;
+  qrContainer.innerHTML = `<img src="${apiUrl}" alt="QR Unduhan" style="display:block; width:115px; height:115px; margin:0 auto; border:none;">`;
   qrWrap.style.display = "block";
 }
 
 function setFilterUI(type) {
   activeFilter = type;
   if (type === 'color') {
+    btnFilterColor.classList.add('active-filter'); btnFilterBW.classList.remove('active-filter');
     btnFilterColor.style.background = "#0076ff"; btnFilterColor.style.color = "#fff"; btnFilterBW.style.background = "#fff"; btnFilterBW.style.color = "#333";
   } else {
+    btnFilterBW.classList.add('active-filter'); btnFilterColor.classList.remove('active-filter');
     btnFilterBW.style.background = "#0076ff"; btnFilterBW.style.color = "#fff"; btnFilterColor.style.background = "#fff"; btnFilterColor.style.color = "#333";
   }
 }
@@ -264,7 +267,7 @@ btnDownload.addEventListener('click', () => {
 btnPrint.addEventListener('click', () => {
   if (!resultDataURL) return; const iframe = document.getElementById('print-iframe'); if (!iframe) return;
   const doc = iframe.contentWindow.document; doc.open();
-  doc.write(`<html><head><style>@page{margin:0;}html,body{margin:0;padding:0;width:100%;display:flex;justify-content:center;} .box{position:relative;width:420px;} img{width:100%;height:auto;display:block;filter:grayscale(100%) contrast(180%) brightness(100%);} .box::after{content:"";position:absolute;inset:0;background-image:radial-gradient(#000 25%,transparent 25%),radial-gradient(#000 25%,transparent 25%);background-size:3px 3px;background-position:0 0,1.5px 1.5px;opacity:0.28;mix-blend-mode:multiply;}</style></head><body><div class="box"><img src="${resultDataURL}"></div><script>window.onload=function(){setTimeout(function(){window.print();},300);};<\/script></body></html>`);
+  doc.write(`<html><head><style>@page{margin:0;}html,body{margin:0;padding:0;width:100%;display:flex;justify-content:center;} .box{position:relative;width:420px;} img{width:100%;height:auto;display:block;} .box::after{content:"";position:absolute;inset:0;background-image:radial-gradient(#000 25%,transparent 25%),radial-gradient(#000 25%,transparent 25%);background-size:3px 3px;background-position:0 0,1.5px 1.5px;opacity:0.22;mix-blend-mode:multiply;}</style></head><body><div class="box"><img src="${resultDataURL}"></div><script>window.onload=function(){setTimeout(function(){window.print();},300);};<\/script></body></html>`);
   doc.close();
 });
 
