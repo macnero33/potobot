@@ -1,25 +1,31 @@
 // ==========================================================================
-// 1. ENGINE DETEKSI: JIKA DIBUKA OLEH HP PENGUNJUNG (MENGGUNAKAN RETURN AMAN)
+// 1. ENGINE DETEKSI HP PENGUNJUNG: MEMBONGKAR DATA KOMPRESI VIA URL HASH
 // ==========================================================================
 function checkVisitorMode() {
-  if (window.location.hash && window.location.hash.startsWith('#id-')) {
+  if (window.location.hash && window.location.hash.startsWith('#p-')) {
     document.addEventListener("DOMContentLoaded", () => {
       const appEl = document.getElementById('photobooth-app');
       const dlEl = document.getElementById('download-page');
       if (appEl) appEl.style.display = 'none';
       if (dlEl) dlEl.style.display = 'flex';
       
-      const photoId = window.location.hash.substring(1);
-      const savedImageData = localStorage.getItem(photoId);
-      
-      const visitorImg = document.getElementById('visitor-img');
-      const visitorDl = document.getElementById('btn-visitor-download');
-      
-      if (savedImageData) {
-        if (visitorImg) visitorImg.src = savedImageData;
-        if (visitorDl) visitorDl.href = savedImageData;
-      } else {
-        alert("Waduh, data foto tidak ditemukan atau sudah kedaluwarsa!");
+      try {
+        // Ambil token terkompresi dari URL hash
+        const compressedData = window.location.hash.substring(3);
+        // Bongkar kembali menjadi string Base64 gambar aslinya secara lokal di HP
+        const originalBase64 = LZString.decompressFromEncodedURIComponent(compressedData);
+        
+        const visitorImg = document.getElementById('visitor-img');
+        const visitorDl = document.getElementById('btn-visitor-download');
+        
+        if (originalBase64 && originalBase64.startsWith('data:image')) {
+          if (visitorImg) visitorImg.src = originalBase64;
+          if (visitorDl) visitorDl.href = originalBase64;
+        } else {
+          alert("Waduh, data foto rusak atau tidak terbaca!");
+        }
+      } catch (err) {
+        alert("Gagal memproses gambar struk kasir.");
       }
     });
     return true; 
@@ -30,7 +36,7 @@ function checkVisitorMode() {
 const isVisitor = checkVisitorMode();
 
 if (!isVisitor) {
-  // Hanya jalankan studio kasir jika dibuka di laptop panitia
+  // Hanya inisialisasi studio jika dibuka di laptop panitia
   document.addEventListener("DOMContentLoaded", () => {
     initPhotoboothStudio();
   });
@@ -124,7 +130,7 @@ function initPhotoboothStudio() {
   }
 
   if (camSel) camSel.addEventListener('change', () => startCam(camSel.value));
-  if (layoutSel) layoutSel.addEventListener('change', () => { resetSesiTotal(); if (statusEl) statusEl.textContent = 'Layout diubah. Silakan ambil foto.'; });
+  if (layoutSel) layoutSel.addEventListener('change', () => { resetSesiTotal(); if (statusEl) statusEl.textContent = 'Layout diubah. Silakan foto.'; });
   if (frameSel) frameSel.addEventListener('change', () => { const layout = getLayout(); if (shots.filter(Boolean).length === layout.count && !shooting) buildResult(layout); });
 
   function resetOutput() {
@@ -173,7 +179,7 @@ function initPhotoboothStudio() {
     const vw = video.videoWidth || 1280; const vh = video.videoHeight || 960;
     c.width = vw; c.height = vh; const ctx = c.getContext('2d');
     ctx.save(); ctx.translate(vw, 0); ctx.scale(-1, 1); ctx.drawImage(video, 0, 0, vw, vh); ctx.restore();
-    return c.toDataURL('image/jpeg', 0.95);
+    return c.toDataURL('image/jpeg', 0.80); // Diturunkan ke kualitas 0.80 agar kompresi string makin pendek & ringan
   }
 
   function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -249,7 +255,7 @@ function initPhotoboothStudio() {
         
         loadedCount++;
         if (loadedCount === activeShots.length) {
-          renderReceiptFooter(); resultDataURL = rc.toDataURL('image/jpeg', 0.90);
+          renderReceiptFooter(); resultDataURL = rc.toDataURL('image/jpeg', 0.75); // Kualitas diturunkan sedikit demi kestabilan data HP
           if (printImg) printImg.src = resultDataURL; if (printResult) printResult.style.display = 'block';
           if (btnDownload) btnDownload.style.display = 'flex'; if (btnPrint) btnPrint.style.display = 'flex'; if (btnReset) btnReset.style.display = 'flex';
           if (statusEl) statusEl.textContent = 'Kompilasi Selesai!';
@@ -261,7 +267,7 @@ function initPhotoboothStudio() {
   }
 
   // ==========================================================================
-  // PEMBUAT QR CODE OFFLINE MURNI CLIENT-SIDE (PASTI MUNCUL)
+  // MASTER ENGINE: TRANSMISI STRUK COMPRESSED LANGSUNG LEWAT MATA LENSA QR
   // ==========================================================================
   function generateCleanQRCode(base64Data) {
     const qrContainer = document.getElementById("qrcode");
@@ -269,19 +275,20 @@ function initPhotoboothStudio() {
     if (!qrContainer || !qrWrap) return;
     
     qrContainer.innerHTML = ""; 
-    const uniqueKey = "id-" + Math.floor(100000 + Math.random() * 900000);
-    localStorage.setItem(uniqueKey, base64Data);
     
-    const compactUrl = window.location.origin + window.location.pathname + "#" + uniqueKey;
+    // Mengompres string Base64 gambar menjadi token teks URL pendek
+    const compressedToken = LZString.compressToEncodedURIComponent(base64Data);
     
-    // Memanggil mesin QRCode lokal murni dari library head script
+    // Format link pendek mandiri: https://webmu.com/#p-[TOKEN_KOMPRESI]
+    const universalUrl = window.location.origin + window.location.pathname + "#p-" + compressedToken;
+    
     new QRCode(qrContainer, {
-      text: compactUrl,
+      text: universalUrl,
       width: 110,
       height: 110,
       colorDark : "#000000",
       colorLight : "#ffffff",
-      correctLevel : QRCode.CorrectLevel.L
+      correctLevel : QRCode.CorrectLevel.L // Blok longgar besar agar instan di-scan HP
     });
     
     qrWrap.style.display = "block";
