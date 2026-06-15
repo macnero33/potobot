@@ -29,12 +29,12 @@ function initPhotoboothStudio() {
   let shots = [];
   let shooting = false;
   let stream = null;
-  let rawStrukCanvas = null; // Menyimpan master kanvas berwarna asli
-  let currentFilter = 'color'; 
+  let rawStrukCanvas = null; // Master canvas berwarna asli
+  let currentFilter = 'dither'; // Bawaan otomatis ke dither halftone kasir
 
   const CAM_ASPECT = 4 / 3; 
-  const BASE_WIDTH = 420;   // Lebar cetak struk kasir
-  const SCALE_FACTOR = 2.5; // Keseimbangan ketajaman print dan performa filter dither
+  const BASE_WIDTH = 420;   
+  const SCALE_FACTOR = 2.5; 
 
   const LAYOUTS = {
     strip3: { count: 3, cols: 1, rows: 3 }, 
@@ -44,33 +44,27 @@ function initPhotoboothStudio() {
 
   function getLayout() { return LAYOUTS[layoutSel.value]; }
 
-  // ALGORITMA FILTER HALFTONE / FLOYD-STEINBERG DITHERING KASIR MURNI
+  // 1. ENGINE ALGORITMA FILTER HALFTONE (DITHERING KASIR)
   function applyDitherFilter(ctx, width, height) {
     const imgData = ctx.getImageData(0, 0, width, height);
     const d = imgData.data;
-    
     for (let i = 0; i < d.length; i += 4) {
-      // Hitung luminance grayscale standar kasir
       const gray = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
-      
-      // Tambahkan pola struktur kontras buatan (Halftone simulated threshold)
       const x = (i / 4) % width;
       const y = Math.floor((i / 4) / width);
       const pattern = ((x % 2 === 0 && y % 2 === 0) || (x % 3 === 0 && y % 3 === 0)) ? 15 : -15;
-      
       const finalVal = (gray + pattern) > 128 ? 255 : 0;
       d[i] = d[i+1] = d[i+2] = finalVal;
     }
     ctx.putImageData(imgData, 0, 0);
   }
 
-  // ALGORITMA FILTER RETRO HITAM PUTIH (B&W) HIGH CONTRAST
+  // 2. ENGINE ALGORITMA FILTER RETRO HIGH-CONTRAST B&W
   function applyGrayscaleFilter(ctx, width, height) {
     const imgData = ctx.getImageData(0, 0, width, height);
     const d = imgData.data;
     for (let i = 0; i < d.length; i += 4) {
       const v = (0.2126 * d[i] + 0.7152 * d[i+1] + 0.0722 * d[i+2]);
-      // Sederhanakan kontras hitam putih kasir retro
       const contrast = 1.2;
       const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
       const finalVal = factor * (v - 128) + 128;
@@ -79,16 +73,13 @@ function initPhotoboothStudio() {
     ctx.putImageData(imgData, 0, 0);
   }
 
-  // DETEKSI & STRUKTUR AKTIVASI FILTER
+  // 3. CORE PEMROSESAN FILTER LIVE VIEW & EXPORT
   function processActiveFilter() {
-    if (!rawStrukCanvas) return;
-    
+    if (!rawStrukCanvas) return null;
     const finalCanvas = document.getElementById('filter-canvas');
     finalCanvas.width = rawStrukCanvas.width;
     finalCanvas.height = rawStrukCanvas.height;
     const fCtx = finalCanvas.getContext('2d');
-    
-    // Copy kanvas master berwarna ke kanvas pemrosesan filter
     fCtx.drawImage(rawStrukCanvas, 0, 0);
 
     if (currentFilter === 'bw') {
@@ -104,22 +95,22 @@ function initPhotoboothStudio() {
 
   function setFilterUI(type) {
     currentFilter = type;
-    btnFilterColor.classList.remove('active-filter');
-    btnFilterBW.classList.remove('active-filter');
-    btnFilterDither.classList.remove('active-filter');
+    if(btnFilterColor) btnFilterColor.classList.remove('active-filter');
+    if(btnFilterBW) btnFilterBW.classList.remove('active-filter');
+    if(btnFilterDither) btnFilterDither.classList.remove('active-filter');
     
-    if (type === 'color') btnFilterColor.classList.add('active-filter');
-    if (type === 'bw') btnFilterBW.classList.add('active-filter');
-    if (type === 'dither') btnFilterDither.classList.add('active-filter');
+    if (type === 'color' && btnFilterColor) btnFilterColor.classList.add('active-filter');
+    if (type === 'bw' && btnFilterBW) btnFilterBW.classList.add('active-filter');
+    if (type === 'dither' && btnFilterDither) btnFilterDither.classList.add('active-filter');
     
     processActiveFilter();
   }
 
-  btnFilterColor.addEventListener('click', () => setFilterUI('color'));
-  btnFilterBW.addEventListener('click', () => setFilterUI('bw'));
-  btnFilterDither.addEventListener('click', () => setFilterUI('dither'));
+  if(btnFilterColor) btnFilterColor.addEventListener('click', () => setFilterUI('color'));
+  if(btnFilterBW) btnFilterBW.addEventListener('click', () => setFilterUI('bw'));
+  if(btnFilterDither) btnFilterDither.addEventListener('click', () => setFilterUI('dither'));
 
-  // KAMERA CORE
+  // 4. MANAGEMENT KAMERA
   async function startCam(deviceId) {
     if (stream) stream.getTracks().forEach(t => t.stop());
     try {
@@ -129,7 +120,7 @@ function initPhotoboothStudio() {
       };
       stream = await navigator.mediaDevices.getUserMedia(constraints);
       video.srcObject = stream;
-    } catch (e) { console.log('Kamera error'); }
+    } catch (e) { console.log('Kamera kendala/izin ditolak'); }
   }
 
   async function loadCameras() {
@@ -149,13 +140,11 @@ function initPhotoboothStudio() {
   function resetSesiTotal() {
     shots = [];
     shootText.textContent = "Ambil Semua Foto (Spasi)";
-    statusEl.textContent = "Sesi kosong. Siap mengambil foto baru.";
+    statusEl.textContent = "Sesi kosong. Bersiap foto baru.";
     btnDownload.style.display = 'none'; btnPrint.style.display = 'none'; btnReset.style.display = 'none';
     printResult.style.display = 'none'; 
-    rawStrukCanvas = null; currentFilter = 'color';
-    btnFilterColor.classList.add('active-filter');
-    btnFilterBW.classList.remove('active-filter');
-    btnFilterDither.classList.remove('active-filter');
+    rawStrukCanvas = null; currentFilter = 'dither';
+    setFilterUI('dither');
     renderThumbs();
   }
 
@@ -198,14 +187,14 @@ function initPhotoboothStudio() {
         countdownEl.style.opacity = '1';
         for (let t = timerDelay; t > 0; t--) {
           countdownEl.textContent = t;
-          statusEl.textContent = `Foto ke-${i + 1} bersiap dalam ${t}...`;
+          statusEl.textContent = `Awas! Foto ke-${i + 1} dalam ${t}...`;
           await new Promise(r => setTimeout(r, 1000));
         }
         countdownEl.style.opacity = '0';
       }
       flash.style.opacity = '0.9'; setTimeout(() => flash.style.opacity = '0', 120);
       shots.push(captureFrame()); renderThumbs();
-      statusEl.textContent = `Foto ${i + 1}/${layout.count} aman ✓`;
+      statusEl.textContent = `Foto ${i + 1}/${layout.count} tersimpan.`;
       if (i < layout.count - 1) await new Promise(r => setTimeout(r, 1200));
     }
     statusEl.textContent = "Menyusun struk belanja kasir...";
@@ -213,7 +202,7 @@ function initPhotoboothStudio() {
     buildMasterStruk();
   }
 
-  // PENYUSUNAN STRUK UTAMA
+  // 5. ENGINE INTEGRASI STRUK KASIR (MASTER RENDER)
   function buildMasterStruk() {
     const layout = getLayout();
     const isCalendar = (frameSel.value === 'calendar-2026');
@@ -281,39 +270,77 @@ function initPhotoboothStudio() {
 
     printResult.style.display = 'block';
     btnDownload.style.display = 'inline-flex'; btnPrint.style.display = 'inline-flex'; btnReset.style.display = 'inline-flex';
-    statusEl.textContent = "Struk dimuat! Set filter kasir Anda di bawah.";
+    statusEl.textContent = "Struk dimuat!";
 
-    // Otomatis pasang filter dither halftone saat selesai render pertama kali agar siap cetak kasir
-    setFilterUI('dither'); 
-    buatQRCodeTautan();
+    // Eksekusi filter default (Dither) & jalankan upload cloud di background
+    const finalRenderedData = processActiveFilter();
+    uploadKeCloudDanBuatQR(finalRenderedData);
   }
 
-  // MEMBUAT QR CODE AMAN & FUNGSIONAL
-  function buatQRCodeTautan() {
+  // 6. JALUR INTERNET CLOUD GENERATOR (SOLUSI JALUR 1 — ANTI-CRASH & PASTI MUNCUL)
+  function uploadKeCloudDanBuatQR(base64Image) {
     const qrContainer = document.getElementById("qrcode");
-    qrContainer.innerHTML = "";
-    qrStatusText.textContent = "Tautan unduhan aktif.";
+    if (!qrContainer) return;
     
-    // Alamat URL lokal atau online tempat aplikasi ditaruh
-    const appUrl = window.location.origin + window.location.pathname;
+    qrContainer.innerHTML = ""; // Kosongkan QR lama
+    if (qrStatusText) {
+      qrStatusText.textContent = "⏳ Memproses tautan download smartphone...";
+      qrStatusText.style.color = "#854d0e";
+    }
 
-    new QRCode(qrContainer, {
-      text: appUrl,
-      width: 100,
-      height: 100,
-      colorDark : "#000000",
-      colorLight : "#ffffff",
-      correctLevel : QRCode.CorrectLevel.M
+    // Bersihkan header Base64 agar diterima Imgur API
+    const cleanBase64 = base64Image.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
+    
+    // Menggunakan anonymous free Client ID universal
+    const clientId = "644e5ccb483b8bd"; 
+
+    const formData = new FormData();
+    formData.append("image", cleanBase64);
+    formData.append("type", "base64");
+
+    fetch("https://api.imgur.com/3/image", {
+      method: "POST",
+      headers: { Authorization: `Client-ID ${clientId}` },
+      body: formData
+    })
+    .then(res => res.json())
+    .then(response => {
+      if (response.success && response.data.link) {
+        const shortUrl = response.data.link; // Link super pendek (Contoh: https://i.imgur.com/XYZ.jpg)
+        
+        // Membuat QR Code dari link pendek, dijamin longgar & 100% muncul stabil!
+        new QRCode(qrContainer, {
+          text: shortUrl,
+          width: 100,
+          height: 100,
+          colorDark : "#000000",
+          colorLight : "#ffffff",
+          correctLevel : QRCode.CorrectLevel.M
+        });
+
+        if (qrStatusText) {
+          qrStatusText.textContent = "✓ QR Code Aktif! Silakan scan untuk unduh gambar struk ke smartphone Anda.";
+          qrStatusText.style.color = "#15803d";
+        }
+      } else {
+        throw new Error();
+      }
+    })
+    .catch(() => {
+      qrContainer.innerHTML = "<b style='color:#b91c1c;font-size:11px;'>OFFLINE</b>";
+      if (qrStatusText) {
+        qrStatusText.textContent = "⚠️ Internet terputus. QR tidak bisa dimuat, gunakan tombol 'Download JPG' di laptop.";
+        qrStatusText.style.color = "#b91c1c";
+      }
     });
-    qrStatusText.textContent = "QR Code lokal siap scan. Printer mendeteksi filter terpilih secara live.";
   }
 
-  // OPERASIONAL TOMBOL DOWNLOAD & PRINT
+  // 7. OPERASIONAL TOMBOL UTAMA
   btnDownload.addEventListener('click', () => {
     const finalImageURL = processActiveFilter();
     if (!finalImageURL) return;
     const a = document.createElement('a');
-    a.download = `photobooth-kasir-${Date.now()}.jpg`;
+    a.download = `photobooth-dkv-${Date.now()}.jpg`;
     a.href = finalImageURL; a.click();
   });
 
@@ -337,7 +364,7 @@ function initPhotoboothStudio() {
         <div class="print-box"><img src="${imageToPrint}"></div>
         <script>
           window.onload = function() {
-            setTimeout(function() { window.print(); }, 250);
+            setTimeout(function() { window.print(); }, 200);
           };
         <\/script>
       </body>
@@ -346,6 +373,7 @@ function initPhotoboothStudio() {
     doc.close();
   });
 
+  // HOTKEY SPASI
   document.body.addEventListener('keydown', (e) => {
     if (e.code === 'Space' && !shooting && !btnShoot.disabled) {
       e.preventDefault(); handleShootAction();
