@@ -4,7 +4,6 @@
 function checkVisitorMode() {
   if (window.location.hash && window.location.hash.startsWith('#id-')) {
     document.addEventListener("DOMContentLoaded", () => {
-      // Sembunyikan dashboard studio panitia, tampilkan layar download HP
       const appEl = document.getElementById('photobooth-app');
       const dlEl = document.getElementById('download-page');
       if (appEl) appEl.style.display = 'none';
@@ -23,18 +22,15 @@ function checkVisitorMode() {
         alert("Waduh, data foto tidak ditemukan atau sudah kedaluwarsa!");
       }
     });
-    return true; // Tandai bahwa ini adalah mode pengunjung
+    return true; 
   }
-  return false; // Mode studio panitia laptop
+  return false; 
 }
 
-// Jalankan pengecekan, jika true, hentikan inisialisasi kamera studio agar tidak bentrok
 const isVisitor = checkVisitorMode();
 
 if (!isVisitor) {
-  // ==========================================================================
-  // 2. ENGINE STUDIO LAPTOP PANITIA (HANYA BERJALAN DI LAPTOP)
-  // ==========================================================================
+  // Hanya jalankan studio kasir jika dibuka di laptop panitia
   document.addEventListener("DOMContentLoaded", () => {
     initPhotoboothStudio();
   });
@@ -118,7 +114,6 @@ function initPhotoboothStudio() {
       await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
       const devices = await navigator.mediaDevices.enumerateDevices();
       const cams = devices.filter(d => d.kind === 'videoinput');
-      
       if (camSel) {
         camSel.innerHTML = cams.map((c, i) => `<option value="${c.deviceId}">${c.label || 'Kamera ' + (i + 1)}</option>`).join('');
         if (cams.length) startCam(cams[0].deviceId);
@@ -129,99 +124,55 @@ function initPhotoboothStudio() {
   }
 
   if (camSel) camSel.addEventListener('change', () => startCam(camSel.value));
-  
-  if (layoutSel) layoutSel.addEventListener('change', () => { 
-    resetSesiTotal(); 
-    if (statusEl) statusEl.textContent = 'Layout diubah. Silakan ambil foto.'; 
-  });
-  
-  if (frameSel) frameSel.addEventListener('change', () => { 
-    const layout = getLayout(); 
-    if (shots.filter(Boolean).length === layout.count && !shooting) buildResult(layout); 
-  });
+  if (layoutSel) layoutSel.addEventListener('change', () => { resetSesiTotal(); if (statusEl) statusEl.textContent = 'Layout diubah. Silakan ambil foto.'; });
+  if (frameSel) frameSel.addEventListener('change', () => { const layout = getLayout(); if (shots.filter(Boolean).length === layout.count && !shooting) buildResult(layout); });
 
   function resetOutput() {
     if (btnDownload) btnDownload.style.display = 'none'; 
     if (btnPrint) btnPrint.style.display = 'none';
     if (btnReset) btnReset.style.display = 'none';
     if (printResult) printResult.style.display = 'none'; 
-    resultDataURL = null; 
-    setFilterUI('color');
+    resultDataURL = null; setFilterUI('color');
   }
 
   function resetSesiTotal() {
-    shots = []; 
-    selectedSlotIndex = null; 
+    shots = []; selectedSlotIndex = null; 
     if (shootText) shootText.textContent = "Ambil Semua Foto (Spasi)";
-    renderThumbs(); 
-    resetOutput();
+    renderThumbs(); resetOutput();
     if (window.location.hash) history.replaceState("", document.title, window.location.pathname + window.location.search);
   }
 
-  if (btnReset) btnReset.addEventListener('click', () => { 
-    resetSesiTotal(); 
-    if (statusEl) statusEl.textContent = 'Sesi dikosongkan. Siap!'; 
-  });
+  if (btnReset) btnReset.addEventListener('click', () => { resetSesiTotal(); if (statusEl) statusEl.textContent = 'Sesi dikosongkan. Siap!'; });
 
   function renderThumbs() {
     if (!stripPreview) return;
-    const layout = getLayout(); 
-    stripPreview.innerHTML = '';
+    const layout = getLayout(); stripPreview.innerHTML = '';
     for (let i = 0; i < layout.count; i++) {
-      const container = document.createElement('div'); 
-      container.className = `thumb-container`;
+      const container = document.createElement('div'); container.className = `thumb-container`;
       if (selectedSlotIndex === i) container.classList.add('active');
-      
-      const badge = document.createElement('div'); 
-      badge.className = 'thumb-badge'; 
-      badge.textContent = `#${i + 1}`; 
-      container.appendChild(badge);
-      
+      const badge = document.createElement('div'); badge.className = 'thumb-badge'; badge.textContent = `#${i + 1}`; container.appendChild(badge);
       if (shots[i]) {
-        const img = document.createElement('img'); 
-        img.className = 'thumb'; 
-        img.src = shots[i]; 
-        container.appendChild(img);
+        const img = document.createElement('img'); img.className = 'thumb'; img.src = shots[i]; container.appendChild(img);
       } else {
-        const emptyBox = document.createElement('div'); 
-        emptyBox.className = 'thumb empty'; 
-        container.appendChild(emptyBox);
+        const emptyBox = document.createElement('div'); emptyBox.className = 'thumb empty'; container.appendChild(emptyBox);
       }
-      
       container.addEventListener('click', () => {
         if (shooting) return;
-        if (selectedSlotIndex === i) { 
-          selectedSlotIndex = null; 
-          if (shootText) shootText.textContent = "Ambil Semua Foto (Spasi)"; 
-        } else { 
-          selectedSlotIndex = i; 
-          if (shootText) shootText.textContent = `Foto Ulang Frame #${i + 1} (Spasi)`; 
-        }
+        if (selectedSlotIndex === i) { selectedSlotIndex = null; if (shootText) shootText.textContent = "Ambil Semua Foto (Spasi)"; } 
+        else { selectedSlotIndex = i; if (shootText) shootText.textContent = `Foto Ulang Frame #${i + 1} (Spasi)`; }
         renderThumbs();
       });
       stripPreview.appendChild(container);
     }
   }
 
-  function doFlash() { 
-    if (flash) {
-      flash.style.opacity = '0.95'; 
-      setTimeout(() => flash.style.opacity = '0', 140); 
-    }
-  }
+  function doFlash() { if (flash) { flash.style.opacity = '0.95'; setTimeout(() => flash.style.opacity = '0', 140); } }
 
   function captureFrame() {
     const c = document.getElementById('shot-canvas');
-    const vw = video.videoWidth || 1280; 
-    const vh = video.videoHeight || 960;
-    c.width = vw; 
-    c.height = vh; 
-    const ctx = c.getContext('2d');
-    ctx.save(); 
-    ctx.translate(vw, 0); 
-    ctx.scale(-1, 1); 
-    ctx.drawImage(video, 0, 0, vw, vh); 
-    ctx.restore();
+    const vw = video.videoWidth || 1280; const vh = video.videoHeight || 960;
+    c.width = vw; c.height = vh; const ctx = c.getContext('2d');
+    ctx.save(); ctx.translate(vw, 0); ctx.scale(-1, 1); ctx.drawImage(video, 0, 0, vw, vh); ctx.restore();
     return c.toDataURL('image/jpeg', 0.95);
   }
 
@@ -231,95 +182,45 @@ function initPhotoboothStudio() {
     const delay = parseInt(timerSel.value) || 0;
     if (delay > 0 && countdownEl) {
       countdownEl.style.opacity = '1';
-      for (let t = delay; t > 0; t--) { 
-        countdownEl.textContent = t; 
-        if (statusEl) statusEl.textContent = `Menjepret #${idx + 1} dalam ${t}...`; 
-        playBeepSound(false); 
-        await wait(1000); 
-      }
+      for (let t = delay; t > 0; t--) { countdownEl.textContent = t; if (statusEl) statusEl.textContent = `Menjepret #${idx + 1} dalam ${t}...`; playBeepSound(false); await wait(1000); }
       countdownEl.style.opacity = '0';
     }
-    playBeepSound(true); 
-    doFlash(); 
-    shots[idx] = captureFrame(); 
-    renderThumbs(); 
-    if (statusEl) statusEl.textContent = `Frame #${idx + 1} disimpan ✓`;
+    playBeepSound(true); doFlash(); shots[idx] = captureFrame(); renderThumbs(); if (statusEl) statusEl.textContent = `Frame #${idx + 1} disimpan ✓`;
   }
 
   async function handleShootAction() {
-    if (shooting) return; 
-    const layout = getLayout(); 
-    shooting = true; 
-    if (btnShoot) btnShoot.disabled = true;
-    
-    if (selectedSlotIndex !== null) { 
-      resetOutput(); 
-      await takeOneShot(selectedSlotIndex); 
-      selectedSlotIndex = null; 
-      if (shootText) shootText.textContent = "Ambil Semua Foto (Spasi)"; 
-    } else { 
-      shots = []; 
-      renderThumbs(); 
-      resetOutput(); 
-      for (let i = 0; i < layout.count; i++) { 
-        await takeOneShot(i); 
-        if (i < layout.count - 1) await wait(1200); 
-      } 
-    }
-    if (statusEl) statusEl.textContent = 'Mengunci data jepretan...'; 
-    await wait(600); 
-    shooting = false; 
-    if (btnShoot) btnShoot.disabled = false; 
-    renderThumbs();
+    if (shooting) return; const layout = getLayout(); shooting = true; if (btnShoot) btnShoot.disabled = true;
+    if (selectedSlotIndex !== null) { resetOutput(); await takeOneShot(selectedSlotIndex); selectedSlotIndex = null; if (shootText) shootText.textContent = "Ambil Semua Foto (Spasi)"; } 
+    else { shots = []; renderThumbs(); resetOutput(); for (let i = 0; i < layout.count; i++) { await takeOneShot(i); if (i < layout.count - 1) await wait(1200); } }
+    if (statusEl) statusEl.textContent = 'Mengunci data jepretan...'; await wait(600); shooting = false; if (btnShoot) btnShoot.disabled = false; renderThumbs();
     if (shots.filter(Boolean).length === layout.count) buildResult(layout);
   }
 
   function buildResult(layout) {
-    const totalW = BASE_WIDTH * SCALE_FACTOR; 
-    const padX = 35 * SCALE_FACTOR; 
-    const gap = 16 * SCALE_FACTOR; 
-    const headerH = 145 * SCALE_FACTOR;
-    const isCalendar = (frameSel.value === 'calendar-2026'); 
-    const footerH = (isCalendar ? 240 : 105) * SCALE_FACTOR;
+    const totalW = BASE_WIDTH * SCALE_FACTOR; const padX = 35 * SCALE_FACTOR; const gap = 16 * SCALE_FACTOR; const headerH = 145 * SCALE_FACTOR;
+    const isCalendar = (frameSel.value === 'calendar-2026'); const footerH = (isCalendar ? 240 : 105) * SCALE_FACTOR;
     
     const availableW = totalW - (padX * 2) - ((layout.cols - 1) * gap);
-    const cellW = Math.floor(availableW / layout.cols); 
-    const cellH = Math.floor(cellW / CAM_ASPECT);
-    const actualGridH = (layout.rows * cellH) + ((layout.rows - 1) * gap); 
-    const totalH = headerH + actualGridH + footerH;
+    const cellW = Math.floor(availableW / layout.cols); const cellH = Math.floor(cellW / CAM_ASPECT);
+    const actualGridH = (layout.rows * cellH) + ((layout.rows - 1) * gap); const totalH = headerH + actualGridH + footerH;
 
-    const rc = document.getElementById('result-canvas'); 
-    rc.width = totalW; 
-    rc.height = totalH; 
-    const ctx = rc.getContext('2d');
-    ctx.fillStyle = '#ffffff'; 
-    ctx.fillRect(0, 0, totalW, totalH);
+    const rc = document.getElementById('result-canvas'); rc.width = totalW; rc.height = totalH; const ctx = rc.getContext('2d');
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, totalW, totalH);
 
-    ctx.fillStyle = '#000000'; 
-    ctx.textAlign = 'center'; 
-    ctx.font = `bold ${34 * SCALE_FACTOR}px "Courier New", Courier, monospace`;
+    ctx.fillStyle = '#000000'; ctx.textAlign = 'center'; ctx.font = `bold ${34 * SCALE_FACTOR}px "Courier New", Courier, monospace`;
     ctx.fillText('RECEIPT', totalW / 2, 52 * SCALE_FACTOR);
-    ctx.font = `${14 * SCALE_FACTOR}px "Courier New", Courier, monospace`; 
-    ctx.fillText('------------------------------------------', totalW / 2, 78 * SCALE_FACTOR);
+    ctx.font = `${14 * SCALE_FACTOR}px "Courier New", Courier, monospace`; ctx.fillText('------------------------------------------', totalW / 2, 78 * SCALE_FACTOR);
     ctx.font = `${11 * SCALE_FACTOR}px "Courier New", Courier, monospace`;
-    
-    const now = new Date(); 
-    const dateStr = now.toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' }); 
-    const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-    ctx.fillText(`ORDER #DKV-${Math.floor(1000 + Math.random() * 9000)}`, totalW / 2, 98 * SCALE_FACTOR); 
-    ctx.fillText(`${dateStr}   ${timeStr}`, totalW / 2, 118 * SCALE_FACTOR);
+    const now = new Date(); const dateStr = now.toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' }); const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    ctx.fillText(`ORDER #DKV-${Math.floor(1000 + Math.random() * 9000)}`, totalW / 2, 98 * SCALE_FACTOR); ctx.fillText(`${dateStr}   ${timeStr}`, totalW / 2, 118 * SCALE_FACTOR);
     ctx.fillText('------------------------------------------', totalW / 2, 134 * SCALE_FACTOR);
 
     let loadedCount = 0;
     const activeShots = shots.filter(Boolean);
 
     function renderReceiptFooter() {
-      ctx.fillStyle = '#000000'; 
-      ctx.textAlign = 'center'; 
-      const startFooterY = headerH + actualGridH + (20 * SCALE_FACTOR);
-      ctx.font = `${14 * SCALE_FACTOR}px "Courier New", Courier, monospace`; 
-      ctx.fillText('------------------------------------------', totalW / 2, startFooterY);
-      
+      ctx.fillStyle = '#000000'; ctx.textAlign = 'center'; const startFooterY = headerH + actualGridH + (20 * SCALE_FACTOR);
+      ctx.font = `${14 * SCALE_FACTOR}px "Courier New", Courier, monospace`; ctx.fillText('------------------------------------------', totalW / 2, startFooterY);
       if (isCalendar) {
         ctx.font = `bold ${16 * SCALE_FACTOR}px "Courier New", Courier, monospace`; ctx.fillText('✨ JUNI 2026 ✨', totalW / 2, startFooterY + (25 * SCALE_FACTOR));
         ctx.font = `bold ${11 * SCALE_FACTOR}px "Courier New", Courier, monospace`; ctx.fillText('S   M   T   W   T   F   S', totalW / 2, startFooterY + (48 * SCALE_FACTOR));
@@ -348,14 +249,9 @@ function initPhotoboothStudio() {
         
         loadedCount++;
         if (loadedCount === activeShots.length) {
-          renderReceiptFooter(); 
-          resultDataURL = rc.toDataURL('image/jpeg', 0.90);
-          if (printImg) printImg.src = resultDataURL; 
-          if (printResult) printResult.style.display = 'block';
-          
-          if (btnDownload) btnDownload.style.display = 'flex'; 
-          if (btnPrint) btnPrint.style.display = 'flex'; 
-          if (btnReset) btnReset.style.display = 'flex';
+          renderReceiptFooter(); resultDataURL = rc.toDataURL('image/jpeg', 0.90);
+          if (printImg) printImg.src = resultDataURL; if (printResult) printResult.style.display = 'block';
+          if (btnDownload) btnDownload.style.display = 'flex'; if (btnPrint) btnPrint.style.display = 'flex'; if (btnReset) btnReset.style.display = 'flex';
           if (statusEl) statusEl.textContent = 'Kompilasi Selesai!';
           
           generateCleanQRCode(resultDataURL);
@@ -364,6 +260,9 @@ function initPhotoboothStudio() {
     });
   }
 
+  // ==========================================================================
+  // PEMBUAT QR CODE OFFLINE MURNI CLIENT-SIDE (PASTI MUNCUL)
+  // ==========================================================================
   function generateCleanQRCode(base64Data) {
     const qrContainer = document.getElementById("qrcode");
     const qrWrap = document.getElementById("qr-wrap");
@@ -375,6 +274,7 @@ function initPhotoboothStudio() {
     
     const compactUrl = window.location.origin + window.location.pathname + "#" + uniqueKey;
     
+    // Memanggil mesin QRCode lokal murni dari library head script
     new QRCode(qrContainer, {
       text: compactUrl,
       width: 110,
@@ -403,12 +303,7 @@ function initPhotoboothStudio() {
   if (btnFilterBW) btnFilterBW.addEventListener('click', () => { if (!shooting && shots.filter(Boolean).length === getLayout().count) { setFilterUI('bw'); buildResult(getLayout()); } });
   if (btnShoot) btnShoot.addEventListener('click', handleShootAction);
 
-  document.body.addEventListener('keydown', (e) => { 
-    if (e.code === 'Space' && !shooting && btnShoot && !btnShoot.disabled) { 
-      e.preventDefault(); 
-      handleShootAction(); 
-    } 
-  }, true);
+  document.body.addEventListener('keydown', (e) => { if (e.code === 'Space' && !shooting && btnShoot && !btnShoot.disabled) { e.preventDefault(); handleShootAction(); } }, true);
 
   if (btnDownload) btnDownload.addEventListener('click', () => {
     if (!resultDataURL) return; const a = document.createElement('a');
