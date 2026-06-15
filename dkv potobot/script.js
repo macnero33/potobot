@@ -277,38 +277,46 @@ function initPhotoboothStudio() {
     uploadKeCloudDanBuatQR(finalRenderedData);
   }
 
-  // 6. JALUR INTERNET CLOUD GENERATOR (SOLUSI JALUR 1 — ANTI-CRASH & PASTI MUNCUL)
+  // 6. JALUR INTERNET CLOUD GENERATOR (PERBAIKAN TOTAL ANTI-GAGAL)
   function uploadKeCloudDanBuatQR(base64Image) {
     const qrContainer = document.getElementById("qrcode");
     if (!qrContainer) return;
     
-    qrContainer.innerHTML = ""; // Kosongkan QR lama
+    qrContainer.innerHTML = ""; 
     if (qrStatusText) {
-      qrStatusText.textContent = "⏳ Memproses tautan download smartphone...";
+      qrStatusText.textContent = "⏳ Memproses QR Code Unduhan...";
       qrStatusText.style.color = "#854d0e";
     }
 
-    // Bersihkan header Base64 agar diterima Imgur API
-    const cleanBase64 = base64Image.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
+    // Mengamankan pemotongan string base64 data url
+    let cleanBase64 = "";
+    if (base64Image.includes(",")) {
+      cleanBase64 = base64Image.split(",")[1];
+    } else {
+      cleanBase64 = base64Image;
+    }
     
-    // Menggunakan anonymous free Client ID universal
-    const clientId = "644e5ccb483b8bd"; 
-
-    const formData = new FormData();
-    formData.append("image", cleanBase64);
-    formData.append("type", "base64");
+    // Kirim data menggunakan format x-www-form-urlencoded (Paling stabil untuk Imgur API)
+    const bodyData = new URLSearchParams();
+    bodyData.append("image", cleanBase64);
+    bodyData.append("type", "base64");
 
     fetch("https://api.imgur.com/3/image", {
       method: "POST",
-      headers: { Authorization: `Client-ID ${clientId}` },
-      body: formData
+      headers: { 
+        "Authorization": "Client-ID 644e5ccb483b8bd"
+      },
+      body: bodyData
     })
-    .then(res => res.json())
+    .then(res => {
+      if (!res.ok) throw new Error("Server menolak request");
+      return res.json();
+    })
     .then(response => {
       if (response.success && response.data.link) {
-        const shortUrl = response.data.link; // Link super pendek (Contoh: https://i.imgur.com/XYZ.jpg)
+        const shortUrl = response.data.link; 
         
-        // Membuat QR Code dari link pendek, dijamin longgar & 100% muncul stabil!
+        // Render QR Code dari link pendek cloud yang super stabil
         new QRCode(qrContainer, {
           text: shortUrl,
           width: 100,
@@ -319,17 +327,18 @@ function initPhotoboothStudio() {
         });
 
         if (qrStatusText) {
-          qrStatusText.textContent = "✓ QR Code Aktif! Silakan scan untuk unduh gambar struk ke smartphone Anda.";
+          qrStatusText.textContent = "✓ QR Code Berhasil Muncul! Silakan scan menggunakan HP pengunjung.";
           qrStatusText.style.color = "#15803d";
         }
       } else {
         throw new Error();
       }
     })
-    .catch(() => {
-      qrContainer.innerHTML = "<b style='color:#b91c1c;font-size:11px;'>OFFLINE</b>";
+    .catch((err) => {
+      console.error(err);
+      qrContainer.innerHTML = "<b style='color:#b91c1c;font-size:11px;'>GAGAL</b>";
       if (qrStatusText) {
-        qrStatusText.textContent = "⚠️ Internet terputus. QR tidak bisa dimuat, gunakan tombol 'Download JPG' di laptop.";
+        qrStatusText.textContent = "⚠️ Pastikan laptop terhubung internet/tethering aktif agar QR bisa muncul.";
         qrStatusText.style.color = "#b91c1c";
       }
     });
