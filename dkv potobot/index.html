@@ -6,21 +6,8 @@
   <title>Photobooth Receipt — Himpunan DKV</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
 </head>
 <body>
-
-<div id="download-page" style="display: none;">
-  <div class="visitor-card">
-    <h2>🎉 Hasil Foto Kamu</h2>
-    <p class="visitor-sub">Struk digital siap disimpan ke galeri smartphone.</p>
-    <div class="visitor-img-wrap">
-      <img id="visitor-img" src="" alt="Hasil Photobooth DKV">
-    </div>
-    <a id="btn-visitor-download" href="#" download="photobooth-dkv-2026.jpg">⬇️ DOWNLOAD FOTO</a>
-    <p class="visitor-footer">*Jika tombol tidak berjalan, <b>tekan lama pada gambar</b> lalu pilih <b>"Simpan Gambar / Add to Photos"</b>.</p>
-  </div>
-</div>
 
 <div id="photobooth-app">
   <header>
@@ -39,22 +26,17 @@
 
       <div id="controls-bar">
         <button id="btn-shoot"><span id="shoot-text">Ambil Semua Foto (Spasi)</span></button>
-        <button id="btn-download">Download</button>
+        <button id="btn-download">Download JPG</button>
         <button id="btn-print">Print Struk</button>
         <button id="btn-reset">Reset Sesi</button>
       </div>
 
-      <p id="status">Kamera siap. Tekan spasi untuk mulai foto.</p>
+      <p id="status">Kamera siap. Tekan tombol atau spasi untuk mulai foto.</p>
 
       <div id="print-result">
-        <h3>🎉 Hasil Struk Cetak:</h3>
+        <h3>🎉 Pratinjau Struk Cetak:</h3>
         <div class="receipt-preview-box">
           <img id="print-img" src="" alt="Hasil photobooth receipt">
-        </div>
-        
-        <div id="filter-selector-bar">
-          <button id="btn-filter-color" class="filter-btn active-filter">🌈 Original Color</button>
-          <button id="btn-filter-bw" class="filter-btn">🖤 Retro B&W</button>
         </div>
         
         <div id="qr-wrap">
@@ -62,7 +44,7 @@
             <div id="qrcode"></div>
             <div class="qr-text-side">
               <h4>Scan untuk Download</h4>
-              <p>Arahkan kamera smartphone ke kode QR ini untuk menyimpan file kualitas tinggi asli ke HP.</p>
+              <p id="qr-status-text">Mengunggah gambar ke cloud cloud...</p>
             </div>
           </div>
         </div>
@@ -71,37 +53,38 @@
 
     <div id="right">
       <div class="ctrl-section">
-        <span class="ctrl-label">Kamera</span>
+        <span class="ctrl-label">Pilih Kamera</span>
         <select id="cam-select"><option value="">Mendeteksi kamera...</option></select>
       </div>
+      
       <div class="ctrl-section">
         <span class="ctrl-label">Layout Struk</span>
         <select id="layout-select">
           <option value="strip3">Strip 3 foto (Memanjang/Vertikal)</option>
           <option value="grid4">Grid 2×2 (4 foto)</option>
-          <option value="grid6">Grid 2×3 (6 foto)</option>
-          <option value="grid8">Grid 2×4 (8 foto)</option>
           <option value="single">Single foto</option>
         </select>
       </div>
+      
       <div class="ctrl-section">
-        <span class="ctrl-label">Mode Warna Cetak / Frame</span>
+        <span class="ctrl-label">Template / Tema Struk</span>
         <select id="frame-select">
           <option value="builtin-light">Struk Kasir Standar (Hitam-Putih)</option>
           <option value="calendar-2026">📅 Edisi Khusus: Kalender Juni 2026</option>
         </select>
       </div>
+      
       <div class="ctrl-section">
-        <span class="ctrl-label">Countdown timer</span>
+        <span class="ctrl-label">Countdown Timer</span>
         <select id="timer-select">
           <option value="3">3 detik</option>
           <option value="5">5 detik</option>
-          <option value="10">10 detik</option>
           <option value="0">Tanpa timer</option>
         </select>
       </div>
+      
       <div class="ctrl-section">
-        <span class="ctrl-label">Pratinjau Slot Foto</span>
+        <span class="ctrl-label">Pratinjau Slot Jepretan</span>
         <div id="strip-preview"></div>
       </div>
     </div>
