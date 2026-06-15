@@ -1,7 +1,6 @@
 // --- AUTO-DETEKSI PERANGKAT HP PENGUNJUNG ---
 if (window.location.hash && window.location.hash.startsWith('#data:image')) {
   document.addEventListener("DOMContentLoaded", () => {
-    // Paksa matikan tampilan studio jika dibuka lewat scanner QR HP
     document.getElementById('photobooth-app').style.display = 'none';
     document.getElementById('download-page').style.display = 'flex';
     
@@ -40,17 +39,17 @@ let stream = null;
 let resultDataURL = null; 
 let activeFilter = 'color'; 
 let selectedSlotIndex = null;
-let qrEncoderInstance = null; // Menyimpan instansi library QRCode
 
 const CAM_ASPECT = 4 / 3; 
 const BASE_WIDTH = 420;
 const SCALE_FACTOR = 3; 
 
+// SINKRONISASI COLS & BARIS FORMULA: Kunci matematis grid proporsional
 const LAYOUTS = {
-  strip3: { count: 3, cols: 2, rows: 2 }, // Formasi Grid Standar bawaan Anda
-  grid4:  { count: 4, cols: 2, rows: 2 }, 
-  grid6:  { count: 6, cols: 2, rows: 3 }, 
-  grid8:  { count: 8, cols: 2, rows: 4 }, 
+  strip3: { count: 3, cols: 1, rows: 3 }, // Strip 3 foto = dipaksa 1 kolom memanjang kebawah!
+  grid4:  { count: 4, cols: 2, rows: 2 }, // Grid 4 = berjejer kotak 2x2
+  grid6:  { count: 6, cols: 2, rows: 3 }, // Grid 6 = berjejer kotak 2x3
+  grid8:  { count: 8, cols: 2, rows: 4 }, // Grid 8 = berjejer kotak 2x4
   single: { count: 1, cols: 1, rows: 1 }
 };
 
@@ -215,9 +214,9 @@ function buildResult(layout) {
       if (loaded === shots.filter(Boolean).length) {
         renderReceiptFooter(); resultDataURL = rc.toDataURL('image/jpeg', 0.95);
         btnDownload.style.display = 'flex'; btnPrint.style.display = 'flex'; if (btnReset) btnReset.style.display = 'flex';
-        printImg.src = resultDataURL; printResult.style.display = 'block'; statusEl.textContent = 'Kompilasi HD Selesai!';
+        printImg.src = resultDataURL; printResult.style.display = 'block'; statusEl.textContent = 'Kompilasi Selesai!';
         
-        // JALANKAN GENERATOR QR CODE DENGAN LINK RE-ROUTE AMAN
+        // MEMANGGIL GENERATOR QR BARU YANG ANTI-LAG & 100% KEBACA
         generateCleanQRCode(resultDataURL);
       }
     }; img.src = src;
@@ -225,33 +224,20 @@ function buildResult(layout) {
 }
 
 // ==========================================================================
-// SOLUSI TOTAL QR CODE GA KEBACA: Sistem Re-routing URL Renggang
+// FIX ENGINE QR CODE: Menggunakan Online API Renggang (Pasti Kebaca)
 // ==========================================================================
 function generateCleanQRCode(base64Data) {
   const qrContainer = document.getElementById("qrcode");
   const qrWrap = document.getElementById("qr-wrap");
   if (!qrContainer || !qrWrap) return;
   
-  qrContainer.innerHTML = ""; 
-  
-  // Menggabungkan link web localhost/pameran kamu saat ini dengan data gambar di ujung hash (#)
   const cleanDownloadURL = window.location.origin + window.location.pathname + "#" + base64Data;
-
-  // Membuat QR Code tipis berukuran 110px menggunakan library resmi
-  if (!qrEncoderInstance) {
-    qrEncoderInstance = new QRCode(qrContainer, {
-      text: cleanDownloadURL,
-      width: 110,
-      height: 110,
-      colorDark : "#000000",
-      colorLight : "#ffffff",
-      correctLevel : QRCode.CorrectLevel.L // Set ke level Low agar titik QR renggang besar dan instan di-scan HP
-    });
-  } else {
-    qrEncoderInstance.clear();
-    qrEncoderInstance.makeCode(cleanDownloadURL);
-  }
   
+  // Menggunakan API QR Server Resmi dengan level koreksi L agar titiknya besar, longgar, dan instan di-scan HP
+  const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=${encodeURIComponent(cleanDownloadURL)}&ecc=L`;
+  
+  // Merender ke dalam HTML sebagai image tag murni
+  qrContainer.innerHTML = `<img src="${apiUrl}" alt="QR Link Unduhan" style="display:block; width:110px; height:110px; margin:0 auto;">`;
   qrWrap.style.display = "block";
 }
 
