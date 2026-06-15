@@ -5,19 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Photobooth Receipt — Himpunan DKV</title>
   <link rel="stylesheet" href="style.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/davidshimjs-qrcodejs@0.0.2/qrcode.min.js"></script>
 </head>
 <body>
 
-<div id="download-page" style="display: none; text-align: center; padding: 40px 20px; font-family: sans-serif;">
-  <h2 style="margin-bottom: 10px;">🎉 Hasil Foto Kamu</h2>
-  <p style="color: #666; font-size: 14px; margin-bottom: 20px;">Silakan tekan tombol di bawah untuk mendownload:</p>
-  <img id="visitor-img" src="" style="max-width: 100%; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); margin-bottom: 25px;">
-  <br>
-  <a id="btn-visitor-download" href="#" download="photobooth-dkv.jpg" style="display: inline-block; padding: 14px 28px; background: #0076ff; color: #fff; text-decoration: none; font-weight: bold; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,118,255,0.3);">⬇️ DOWNLOAD FOTO</a>
-  <p style="color: #999; font-size: 11px; margin-top: 15px; line-height: 1.4;">
-    *Tips: Jika unduhan tidak berjalan otomatis, cukup <b>tekan lama pada gambar</b> di atas, lalu pilih <b>"Simpan Gambar / Add to Photos"</b>.
-  </p>
+<div id="download-page" style="display: none;">
+  <div class="visitor-card">
+    <h2>🎉 Hasil Foto Kamu</h2>
+    <p class="visitor-sub">Struk digital siap disimpan ke galeri smartphone.</p>
+    <div class="visitor-img-wrap">
+      <img id="visitor-img" src="" alt="Hasil Photobooth DKV">
+    </div>
+    <a id="btn-visitor-download" href="#" download="photobooth-dkv-2026.jpg">⬇️ DOWNLOAD FOTO</a>
+    <p class="visitor-footer">*Jika tombol tidak berjalan, <b>tekan lama pada gambar</b> lalu pilih <b>"Simpan Gambar / Add to Photos"</b>.</p>
+  </div>
 </div>
 
 <div id="photobooth-app">
@@ -27,7 +28,6 @@
   </header>
 
   <div class="konten-studio">
-    
     <div id="left">
       <div id="cam-wrap">
         <video id="video" autoplay playsinline muted></video>
@@ -37,25 +37,23 @@
       </div>
 
       <div id="controls-bar">
-        <button id="btn-shoot">
-          <span id="shoot-text">Ambil Semua Foto (Spasi)</span>
-        </button>
+        <button id="btn-shoot"><span id="shoot-text">Ambil Semua Foto (Spasi)</span></button>
         <button id="btn-download">Download</button>
         <button id="btn-print">Print Struk</button>
         <button id="btn-reset">Reset Sesi</button>
       </div>
 
-      <p id="status">Kamera siap. Pilih layout struk, lalu klik spasi untuk memotret.</p>
+      <p id="status">Kamera siap. Tekan spasi untuk mulai foto.</p>
 
       <div id="print-result">
         <h3>🎉 Hasil Struk Cetak:</h3>
-        <div style="text-align: center; position: relative;">
+        <div class="receipt-preview-box">
           <img id="print-img" src="" alt="Hasil photobooth receipt">
         </div>
         
-        <div id="filter-selector-bar" style="display: flex; gap: 8px; justify-content: center; margin: -10px auto 20px auto; max-width: 100%;">
-          <button id="btn-filter-color" class="filter-btn active-filter" style="flex: 1; padding: 8px; font-size: 12px; font-weight: bold; border: 1px solid #0076ff; background: #0076ff; color: #fff; border-radius: 6px; cursor: pointer;">🌈 Original Color</button>
-          <button id="btn-filter-bw" class="filter-btn" style="flex: 1; padding: 8px; font-size: 12px; font-weight: bold; border: 1px solid #ccc; background: #fff; color: #333; border-radius: 6px; cursor: pointer;">🖤 Retro B&W</button>
+        <div id="filter-selector-bar">
+          <button id="btn-filter-color" class="filter-btn active-filter">🌈 Original Color</button>
+          <button id="btn-filter-bw" class="filter-btn">🖤 Retro B&W</button>
         </div>
         
         <div id="qr-wrap">
@@ -63,7 +61,7 @@
             <div id="qrcode"></div>
             <div class="qr-text-side">
               <h4>Scan untuk Download</h4>
-              <p>Arahkan kamera HP pengunjung ke kode QR ini untuk langsung membuka halaman unduhan di smartphone mereka.</p>
+              <p>Arahkan kamera smartphone ke kode QR ini untuk menyimpan file kualitas tinggi asli ke HP.</p>
             </div>
           </div>
         </div>
@@ -75,7 +73,6 @@
         <span class="ctrl-label">Kamera</span>
         <select id="cam-select"><option value="">Mendeteksi kamera...</option></select>
       </div>
-
       <div class="ctrl-section">
         <span class="ctrl-label">Layout Struk</span>
         <select id="layout-select">
@@ -86,7 +83,6 @@
           <option value="single">Single foto</option>
         </select>
       </div>
-
       <div class="ctrl-section">
         <span class="ctrl-label">Mode Warna Cetak / Frame</span>
         <select id="frame-select">
@@ -94,7 +90,6 @@
           <option value="calendar-2026">📅 Edisi Khusus: Kalender Juni 2026</option>
         </select>
       </div>
-
       <div class="ctrl-section">
         <span class="ctrl-label">Countdown timer</span>
         <select id="timer-select">
@@ -104,14 +99,11 @@
           <option value="0">Tanpa timer</option>
         </select>
       </div>
-
       <div class="ctrl-section">
         <span class="ctrl-label">Pratinjau Slot Foto</span>
         <div id="strip-preview"></div>
-        <span id="strip-label">Klik salah satu kotak di atas jika ingin menjepret ulang slot tersebut saja.</span>
       </div>
     </div>
-
   </div>
 
   <canvas id="result-canvas" style="display: none;"></canvas>
