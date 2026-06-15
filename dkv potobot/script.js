@@ -1,5 +1,5 @@
 // ==========================================================================
-// 1. ENGINE DETEKSI HP PENGUNJUNG: MEMBONGKAR DATA KOMPRESI VIA URL HASH
+// 1. ENGINE DETEKSI HP PENGUNJUNG: MEMBONGKAR DATA MINI COMPRESSED VIA URL
 // ==========================================================================
 function checkVisitorMode() {
   if (window.location.hash && window.location.hash.startsWith('#p-')) {
@@ -10,9 +10,7 @@ function checkVisitorMode() {
       if (dlEl) dlEl.style.display = 'flex';
       
       try {
-        // Ambil token terkompresi dari URL hash
         const compressedData = window.location.hash.substring(3);
-        // Bongkar kembali menjadi string Base64 gambar aslinya secara lokal di HP
         const originalBase64 = LZString.decompressFromEncodedURIComponent(compressedData);
         
         const visitorImg = document.getElementById('visitor-img');
@@ -22,10 +20,10 @@ function checkVisitorMode() {
           if (visitorImg) visitorImg.src = originalBase64;
           if (visitorDl) visitorDl.href = originalBase64;
         } else {
-          alert("Waduh, data foto rusak atau tidak terbaca!");
+          alert("Waduh, data foto terlalu besar atau tidak terbaca di HP ini.");
         }
       } catch (err) {
-        alert("Gagal memproses gambar struk kasir.");
+        alert("Gagal memproses gambar.");
       }
     });
     return true; 
@@ -36,7 +34,6 @@ function checkVisitorMode() {
 const isVisitor = checkVisitorMode();
 
 if (!isVisitor) {
-  // Hanya inisialisasi studio jika dibuka di laptop panitia
   document.addEventListener("DOMContentLoaded", () => {
     initPhotoboothStudio();
   });
@@ -74,7 +71,7 @@ function initPhotoboothStudio() {
 
   const CAM_ASPECT = 4 / 3; 
   const BASE_WIDTH = 420;
-  const SCALE_FACTOR = 3; 
+  const SCALE_FACTOR = 2; // Diturunkan dari 3 ke 2 agar ukuran file tidak membuat QR Code Crash
 
   const LAYOUTS = {
     strip3: { count: 3, cols: 1, rows: 3 }, 
@@ -104,14 +101,14 @@ function initPhotoboothStudio() {
     if (stream) stream.getTracks().forEach(t => t.stop());
     try {
       const constraints = {
-        video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'user', width: { ideal: 1280 } },
+        video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'user', width: { ideal: 640 } },
         audio: false
       };
       stream = await navigator.mediaDevices.getUserMedia(constraints);
       if (video) video.srcObject = stream;
       if (camStatus) camStatus.textContent = 'Kamera aktif';
     } catch (e) { 
-      if (camStatus) camStatus.textContent = 'Kamera bermasalah / izin ditolak'; 
+      if (camStatus) camStatus.textContent = 'Kamera bermasalah'; 
     }
   }
 
@@ -125,30 +122,28 @@ function initPhotoboothStudio() {
         if (cams.length) startCam(cams[0].deviceId);
       }
     } catch (e) { 
-      if (camSel) camSel.innerHTML = '<option>Akses kamera ditolak</option>'; 
+      if (camSel) camSel.innerHTML = '<option>Akses ditolak</option>'; 
     }
   }
 
   if (camSel) camSel.addEventListener('change', () => startCam(camSel.value));
-  if (layoutSel) layoutSel.addEventListener('change', () => { resetSesiTotal(); if (statusEl) statusEl.textContent = 'Layout diubah. Silakan foto.'; });
-  if (frameSel) frameSel.addEventListener('change', () => { const layout = getLayout(); if (shots.filter(Boolean).length === layout.count && !shooting) buildResult(layout); });
+  if (layoutSel) layoutSel.addEventListener('change', () => { resetSesiTotal(); });
 
   function resetOutput() {
     if (btnDownload) btnDownload.style.display = 'none'; 
     if (btnPrint) btnPrint.style.display = 'none';
     if (btnReset) btnReset.style.display = 'none';
     if (printResult) printResult.style.display = 'none'; 
-    resultDataURL = null; setFilterUI('color');
+    resultDataURL = null;
   }
 
   function resetSesiTotal() {
     shots = []; selectedSlotIndex = null; 
     if (shootText) shootText.textContent = "Ambil Semua Foto (Spasi)";
     renderThumbs(); resetOutput();
-    if (window.location.hash) history.replaceState("", document.title, window.location.pathname + window.location.search);
   }
 
-  if (btnReset) btnReset.addEventListener('click', () => { resetSesiTotal(); if (statusEl) statusEl.textContent = 'Sesi dikosongkan. Siap!'; });
+  if (btnReset) btnReset.addEventListener('click', () => { resetSesiTotal(); });
 
   function renderThumbs() {
     if (!stripPreview) return;
@@ -162,12 +157,6 @@ function initPhotoboothStudio() {
       } else {
         const emptyBox = document.createElement('div'); emptyBox.className = 'thumb empty'; container.appendChild(emptyBox);
       }
-      container.addEventListener('click', () => {
-        if (shooting) return;
-        if (selectedSlotIndex === i) { selectedSlotIndex = null; if (shootText) shootText.textContent = "Ambil Semua Foto (Spasi)"; } 
-        else { selectedSlotIndex = i; if (shootText) shootText.textContent = `Foto Ulang Frame #${i + 1} (Spasi)`; }
-        renderThumbs();
-      });
       stripPreview.appendChild(container);
     }
   }
@@ -176,10 +165,10 @@ function initPhotoboothStudio() {
 
   function captureFrame() {
     const c = document.getElementById('shot-canvas');
-    const vw = video.videoWidth || 1280; const vh = video.videoHeight || 960;
-    c.width = vw; c.height = vh; const ctx = c.getContext('2d');
-    ctx.save(); ctx.translate(vw, 0); ctx.scale(-1, 1); ctx.drawImage(video, 0, 0, vw, vh); ctx.restore();
-    return c.toDataURL('image/jpeg', 0.80); // Diturunkan ke kualitas 0.80 agar kompresi string makin pendek & ringan
+    c.width = 400; c.height = 300; // Perkecil resolusi frame mentah agar tidak overload
+    const ctx = c.getContext('2d');
+    ctx.save(); ctx.translate(400, 0); ctx.scale(-1, 1); ctx.drawImage(video, 0, 0, 400, 300); ctx.restore();
+    return c.toDataURL('image/jpeg', 0.60); // Turunkan kualitas ke 60% khusus pengiriman data QR
   }
 
   function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -188,17 +177,17 @@ function initPhotoboothStudio() {
     const delay = parseInt(timerSel.value) || 0;
     if (delay > 0 && countdownEl) {
       countdownEl.style.opacity = '1';
-      for (let t = delay; t > 0; t--) { countdownEl.textContent = t; if (statusEl) statusEl.textContent = `Menjepret #${idx + 1} dalam ${t}...`; playBeepSound(false); await wait(1000); }
+      for (let t = delay; t > 0; t--) { countdownEl.textContent = t; playBeepSound(false); await wait(1000); }
       countdownEl.style.opacity = '0';
     }
-    playBeepSound(true); doFlash(); shots[idx] = captureFrame(); renderThumbs(); if (statusEl) statusEl.textContent = `Frame #${idx + 1} disimpan ✓`;
+    playBeepSound(true); doFlash(); shots[idx] = captureFrame(); renderThumbs();
   }
 
   async function handleShootAction() {
     if (shooting) return; const layout = getLayout(); shooting = true; if (btnShoot) btnShoot.disabled = true;
-    if (selectedSlotIndex !== null) { resetOutput(); await takeOneShot(selectedSlotIndex); selectedSlotIndex = null; if (shootText) shootText.textContent = "Ambil Semua Foto (Spasi)"; } 
-    else { shots = []; renderThumbs(); resetOutput(); for (let i = 0; i < layout.count; i++) { await takeOneShot(i); if (i < layout.count - 1) await wait(1200); } }
-    if (statusEl) statusEl.textContent = 'Mengunci data jepretan...'; await wait(600); shooting = false; if (btnShoot) btnShoot.disabled = false; renderThumbs();
+    shots = []; renderThumbs(); resetOutput(); 
+    for (let i = 0; i < layout.count; i++) { await takeOneShot(i); if (i < layout.count - 1) await wait(1200); }
+    shooting = false; if (btnShoot) btnShoot.disabled = false;
     if (shots.filter(Boolean).length === layout.count) buildResult(layout);
   }
 
@@ -213,52 +202,27 @@ function initPhotoboothStudio() {
     const rc = document.getElementById('result-canvas'); rc.width = totalW; rc.height = totalH; const ctx = rc.getContext('2d');
     ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, totalW, totalH);
 
-    ctx.fillStyle = '#000000'; ctx.textAlign = 'center'; ctx.font = `bold ${34 * SCALE_FACTOR}px "Courier New", Courier, monospace`;
+    ctx.fillStyle = '#000000'; ctx.textAlign = 'center'; ctx.font = `bold ${24 * SCALE_FACTOR}px monospace`;
     ctx.fillText('RECEIPT', totalW / 2, 52 * SCALE_FACTOR);
-    ctx.font = `${14 * SCALE_FACTOR}px "Courier New", Courier, monospace`; ctx.fillText('------------------------------------------', totalW / 2, 78 * SCALE_FACTOR);
-    ctx.font = `${11 * SCALE_FACTOR}px "Courier New", Courier, monospace`;
-    const now = new Date(); const dateStr = now.toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' }); const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-    ctx.fillText(`ORDER #DKV-${Math.floor(1000 + Math.random() * 9000)}`, totalW / 2, 98 * SCALE_FACTOR); ctx.fillText(`${dateStr}   ${timeStr}`, totalW / 2, 118 * SCALE_FACTOR);
-    ctx.fillText('------------------------------------------', totalW / 2, 134 * SCALE_FACTOR);
 
     let loadedCount = 0;
     const activeShots = shots.filter(Boolean);
-
-    function renderReceiptFooter() {
-      ctx.fillStyle = '#000000'; ctx.textAlign = 'center'; const startFooterY = headerH + actualGridH + (20 * SCALE_FACTOR);
-      ctx.font = `${14 * SCALE_FACTOR}px "Courier New", Courier, monospace`; ctx.fillText('------------------------------------------', totalW / 2, startFooterY);
-      if (isCalendar) {
-        ctx.font = `bold ${16 * SCALE_FACTOR}px "Courier New", Courier, monospace`; ctx.fillText('✨ JUNI 2026 ✨', totalW / 2, startFooterY + (25 * SCALE_FACTOR));
-        ctx.font = `bold ${11 * SCALE_FACTOR}px "Courier New", Courier, monospace`; ctx.fillText('S   M   T   W   T   F   S', totalW / 2, startFooterY + (48 * SCALE_FACTOR));
-        ctx.font = `${12 * SCALE_FACTOR}px "Courier New", Courier, monospace`; ctx.fillText('-------------------------', totalW / 2, startFooterY + (58 * SCALE_FACTOR));
-        const days = [" 1   2   3   4   5   6   7", " 8   9  10  11  12  13  14", "15  16  17  18  19  20  21", "22  23  24  25  26  27  28", "29  30"];
-        ctx.font = `${12 * SCALE_FACTOR}px "Courier New", Courier, monospace`; let lineY = startFooterY + (74 * SCALE_FACTOR);
-        days.forEach(rowStr => { ctx.fillText(rowStr, totalW / 2, lineY); lineY += (16 * SCALE_FACTOR); });
-        ctx.font = `${14 * SCALE_FACTOR}px "Courier New", Courier, monospace`; ctx.fillText('------------------------------------------', totalW / 2, lineY + (5 * SCALE_FACTOR));
-        ctx.font = `italic ${11 * SCALE_FACTOR}px "Courier New", Courier, monospace`; ctx.fillText('* DKV EXHIBITION MEMORY *', totalW / 2, lineY + (24 * SCALE_FACTOR));
-      } else {
-        ctx.font = `bold ${16 * SCALE_FACTOR}px "Courier New", Courier, monospace`; ctx.fillText('★ ★ ★ ★ ★', totalW / 2, startFooterY + (26 * SCALE_FACTOR));
-        ctx.font = `italic ${13 * SCALE_FACTOR}px "Courier New", Courier, monospace`; ctx.fillText('* THANK YOU FOR VISITING *', totalW / 2, startFooterY + (52 * SCALE_FACTOR));
-        ctx.font = `${9 * SCALE_FACTOR}px "Courier New", Courier, monospace`; ctx.fillText('HIMPUNAN MAHASISWA DKV', totalW / 2, startFooterY + (70 * SCALE_FACTOR));
-      }
-    }
 
     activeShots.forEach((src, i) => {
       const img = new Image();
       img.onload = () => {
         const col = i % layout.cols; const row = Math.floor(i / layout.cols);
         const x = padX + col * (cellW + gap); const y = headerH + row * (cellH + gap);
-        ctx.save(); ctx.beginPath(); ctx.rect(x, y, cellW, cellH); ctx.clip();
-        ctx.filter = (activeFilter === 'bw') ? 'grayscale(100%) contrast(140%) brightness(105%)' : 'none';
-        ctx.drawImage(img, 0, 0, img.width, img.height, x, y, cellW, cellH); ctx.restore();
-        ctx.strokeStyle = '#000000'; ctx.lineWidth = 2.5 * SCALE_FACTOR; ctx.strokeRect(x, y, cellW, cellH);
+        ctx.save(); ctx.drawImage(img, x, y, cellW, cellH); ctx.restore();
         
         loadedCount++;
         if (loadedCount === activeShots.length) {
-          renderReceiptFooter(); resultDataURL = rc.toDataURL('image/jpeg', 0.75); // Kualitas diturunkan sedikit demi kestabilan data HP
-          if (printImg) printImg.src = resultDataURL; if (printResult) printResult.style.display = 'block';
-          if (btnDownload) btnDownload.style.display = 'flex'; if (btnPrint) btnPrint.style.display = 'flex'; if (btnReset) btnReset.style.display = 'flex';
-          if (statusEl) statusEl.textContent = 'Kompilasi Selesai!';
+          resultDataURL = rc.toDataURL('image/jpeg', 0.50); // Kompresi maksimal 50% agar QR CODE PASTI MUNCUL
+          if (printImg) printImg.src = resultDataURL; 
+          if (printResult) printResult.style.display = 'block';
+          if (btnDownload) btnDownload.style.display = 'flex'; 
+          if (btnPrint) btnPrint.style.display = 'flex'; 
+          if (btnReset) btnReset.style.display = 'flex';
           
           generateCleanQRCode(resultDataURL);
         }
@@ -267,7 +231,7 @@ function initPhotoboothStudio() {
   }
 
   // ==========================================================================
-  // MASTER ENGINE: TRANSMISI STRUK COMPRESSED LANGSUNG LEWAT MATA LENSA QR
+  // GENERATOR QR CODE DENGAN VALIDASI KAPASITAS (ANTI-CRASH)
   // ==========================================================================
   function generateCleanQRCode(base64Data) {
     const qrContainer = document.getElementById("qrcode");
@@ -276,52 +240,39 @@ function initPhotoboothStudio() {
     
     qrContainer.innerHTML = ""; 
     
-    // Mengompres string Base64 gambar menjadi token teks URL pendek
-    const compressedToken = LZString.compressToEncodedURIComponent(base64Data);
-    
-    // Format link pendek mandiri: https://webmu.com/#p-[TOKEN_KOMPRESI]
-    const universalUrl = window.location.origin + window.location.pathname + "#p-" + compressedToken;
-    
-    new QRCode(qrContainer, {
-      text: universalUrl,
-      width: 110,
-      height: 110,
-      colorDark : "#000000",
-      colorLight : "#ffffff",
-      correctLevel : QRCode.CorrectLevel.L // Blok longgar besar agar instan di-scan HP
-    });
-    
-    qrWrap.style.display = "block";
-  }
+    try {
+      // Mengompres string gambar
+      const compressedToken = LZString.compressToEncodedURIComponent(base64Data);
+      const universalUrl = window.location.origin + window.location.pathname + "#p-" + compressedToken;
+      
+      // Keamanan deteksi panjang karakter: Jika terlalu besar, gunakan fallback otomatis
+      if (universalUrl.length > 2500) {
+        // Fallback jika string melampaui limit QRCodeJS standar:
+        qrContainer.innerHTML = "<p style='font-size:11px;color:red;font-weight:bold;'>Foto Terlalu Padat untuk QR Offline.<br>Silakan Klik Tombol 'Download' di Laptop Panitia.</p>";
+        qrWrap.style.display = "block";
+        return;
+      }
 
-  function setFilterUI(type) {
-    activeFilter = type;
-    if (!btnFilterColor || !btnFilterBW) return;
-    if (type === 'color') {
-      btnFilterColor.classList.add('active-filter'); btnFilterBW.classList.remove('active-filter');
-      btnFilterColor.style.background = "#0076ff"; btnFilterColor.style.color = "#fff"; btnFilterBW.style.background = "#fff"; btnFilterBW.style.color = "#333";
-    } else {
-      btnFilterBW.classList.add('active-filter'); btnFilterColor.classList.remove('active-filter');
-      btnFilterBW.style.background = "#0076ff"; btnFilterBW.style.color = "#fff"; btnFilterColor.style.background = "#fff"; btnFilterColor.style.color = "#333";
+      new QRCode(qrContainer, {
+        text: universalUrl,
+        width: 120,
+        height: 120,
+        colorDark : "#000000",
+        colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.L // Low correction level agar menampung data besar
+      });
+      
+      qrWrap.style.display = "block";
+    } catch (e) {
+      qrContainer.innerHTML = "<p style='font-size:11px;color:red;'>Gagal memuat QR Code.</p>";
     }
   }
 
-  if (btnFilterColor) btnFilterColor.addEventListener('click', () => { if (!shooting && shots.filter(Boolean).length === getLayout().count) { setFilterUI('color'); buildResult(getLayout()); } });
-  if (btnFilterBW) btnFilterBW.addEventListener('click', () => { if (!shooting && shots.filter(Boolean).length === getLayout().count) { setFilterUI('bw'); buildResult(getLayout()); } });
   if (btnShoot) btnShoot.addEventListener('click', handleShootAction);
-
-  document.body.addEventListener('keydown', (e) => { if (e.code === 'Space' && !shooting && btnShoot && !btnShoot.disabled) { e.preventDefault(); handleShootAction(); } }, true);
 
   if (btnDownload) btnDownload.addEventListener('click', () => {
     if (!resultDataURL) return; const a = document.createElement('a');
-    a.download = `photobooth-${activeFilter}.jpg`; a.href = resultDataURL; a.click();
-  });
-
-  if (btnPrint) btnPrint.addEventListener('click', () => {
-    if (!resultDataURL || !printIframe) return; 
-    const doc = printIframe.contentWindow.document; doc.open();
-    doc.write(`<html><head><style>@page{margin:0;}html,body{margin:0;padding:0;width:100%;display:flex;justify-content:center;} .box{position:relative;width:420px;} img{width:100%;height:auto;display:block;} .box::after{content:"";position:absolute;inset:0;background-image:radial-gradient(#000 25%,transparent 25%),radial-gradient(#000 25%,transparent 25%);background-size:3px 3px;background-position:0 0,1.5px 1.5px;opacity:0.22;mix-blend-mode:multiply;}</style></head><body><div class="box"><img src="${resultDataURL}"></div><script>window.onload=function(){setTimeout(function(){window.print();},300);};<\/script></body></html>`);
-    doc.close();
+    a.download = `photobooth.jpg`; a.href = resultDataURL; a.click();
   });
 
   loadCameras();
