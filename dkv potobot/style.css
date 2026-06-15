@@ -1,5 +1,5 @@
 /* ==========================================================================
-   MASTER FINAL STYLE: PHOTOBOOTH RECEIPT HIMPUNAN DKV (FIXED VERTIKAL PREVIEW)
+   MASTER CSS FINAL: 100% MOBILE RESPONSIVE + LAPTOP STUDIO (CLEAN VERSION)
    ========================================================================== */
 
 *, *::before, *::after { 
@@ -32,18 +32,16 @@ body {
   letter-spacing: -0.01em;
 }
 
-/* --- PEMBUNGKUS UTAMA APLIKASI --- */
-#photobooth-app, #app {
-  display: flex !important;
-  flex-direction: column !important; 
+/* --- GRID UTAMA MODE LAPTOP PANITIA --- */
+#photobooth-app {
+  display: flex;
+  flex-direction: column; 
   width: 100%;
   max-width: 1000px; 
   margin: 0 auto;
   padding: 24px;
-  box-sizing: border-box;
 }
 
-/* --- HEADER TITLE BAR --- */
 header { 
   background: var(--surface-color); 
   border: 1px solid var(--border-light);
@@ -52,259 +50,137 @@ header {
   display: flex; 
   justify-content: space-between; 
   align-items: center; 
-  width: 100%;
   margin-bottom: 20px;
   box-shadow: var(--shadow-sm);
 }
 
-header h1 { 
-  font-size: 17px; 
-  font-weight: 700; 
-}
+header h1 { font-size: 17px; font-weight: 700; }
+#cam-status { font-size: 11px; font-weight: 600; color: var(--accent-color); background: rgba(0, 118, 255, 0.1); padding: 4px 12px; border-radius: 20px; }
 
-#cam-status { 
-  font-size: 11px; 
-  font-weight: 600;
-  color: var(--accent-color);
-  background: rgba(0, 118, 255, 0.1);
-  padding: 4px 12px;
-  border-radius: 20px;
-}
-
-/* --- DUA KOLOM BERDAMPINGAN --- */
 .konten-studio {
-  display: flex !important;
-  flex-direction: row !important; 
+  display: flex;
+  flex-direction: row; 
   gap: 24px;
   width: 100%;
   align-items: flex-start;
 }
 
-/* SISI KIRI (Kamera, Tombol, Struk) */
-#left { 
-  flex: 1; 
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  min-width: 0;
-}
+#left { flex: 1; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+#right { width: 290px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; }
 
-/* SISI KANAN (Menu Kontrol Pilihan Kamera & Slot) */
-#right { 
-  width: 290px; 
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-/* --- PANEL LIVE VIEW KAMERA --- */
+/* --- LIVE CAMERA VIEW PANEL --- */
 #cam-wrap { 
-  position: relative; 
-  width: 100%;
-  max-width: 520px; 
-  aspect-ratio: 4/3; 
-  background: #111115; 
-  border-radius: var(--radius-lg); 
-  overflow: hidden; 
-  border: 1px solid var(--border-light); 
-  box-shadow: var(--shadow-md);
+  position: relative; width: 100%; max-width: 520px; aspect-ratio: 4/3; 
+  background: #111115; border-radius: var(--radius-lg); overflow: hidden; 
+  border: 1px solid var(--border-light); box-shadow: var(--shadow-md);
 }
+#video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+#cam-overlay { position: absolute; inset: 0; border: 2px dashed rgba(255, 255, 255, 0.35); margin: 15px; border-radius: var(--radius-md); pointer-events: none; z-index: 3; }
+#countdown-display { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 80px; font-weight: 800; color: #fff; opacity: 0; text-shadow: 0 4px 24px rgba(0,0,0,0.5); pointer-events: none; z-index: 10; }
+#flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 5; }
 
-#video { 
-  width: 100%; 
-  height: 100%; 
-  object-fit: cover; 
-  transform: scaleX(-1); 
-}
-
-#cam-overlay {
-  position: absolute;
-  inset: 0;
-  border: 2px dashed rgba(255, 255, 255, 0.35);
-  margin: 15px;
-  border-radius: var(--radius-md);
-  pointer-events: none;
-  z-index: 3;
-}
-
-#countdown-display { 
-  position: absolute; 
-  inset: 0; 
-  display: flex; 
-  align-items: center; 
-  justify-content: center; 
-  font-size: 80px; 
-  font-weight: 800; 
-  color: #fff; 
-  opacity: 0; 
-  text-shadow: 0 4px 24px rgba(0,0,0,0.5);
-  pointer-events: none;
-  z-index: 10;
-}
-
-#flash { 
-  position: absolute; 
-  inset: 0; 
-  background: #fff; 
-  opacity: 0; 
-  pointer-events: none; 
-  z-index: 5; 
-}
-
-/* --- TOMBOL KONTROL BAR --- */
-#controls-bar { 
-  display: flex; 
-  gap: 12px; 
-  width: 100%;
-  max-width: 520px;
-}
-
-#btn-shoot { 
-  flex: 3; 
-  padding: 14px; 
-  background: var(--text-main); 
-  color: #fff; 
-  border: none;
-  border-radius: var(--radius-md); 
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer; 
-}
-
-#btn-download, #btn-print, #btn-reset { 
-  flex: 1;
-  padding: 14px;
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  display: none; 
-  justify-content: center;
-  align-items: center;
-}
+/* --- CONTROLS TOMBOL BAR --- */
+#controls-bar { display: flex; gap: 12px; width: 100%; max-width: 520px; }
+#btn-shoot { flex: 3; padding: 14px; background: var(--text-main); color: #fff; border: none; border-radius: var(--radius-md); font-size: 14px; font-weight: 600; cursor: pointer; }
+#btn-download, #btn-print, #btn-reset { flex: 1; padding: 14px; border-radius: var(--radius-md); font-size: 13px; font-weight: 600; cursor: pointer; display: none; justify-content: center; align-items: center; }
 #btn-download { background: var(--accent-color); color: white; border: none; }
 #btn-print { background: var(--surface-color); color: var(--text-main); border: 1px solid var(--border-medium); }
 #btn-reset { background: #eaeaea; color: #555; border: none; }
+#status { font-size: 13px; color: var(--text-muted); text-align: center; line-height: 1.5; background: rgba(0,0,0,0.02); padding: 8px; border-radius: var(--radius-sm); max-width: 520px; }
 
-#status { 
-  font-size: 13px; 
-  color: var(--text-muted); 
-  text-align: center; 
-  line-height: 1.5;
-  background: rgba(0,0,0,0.02);
-  padding: 8px;
-  border-radius: var(--radius-sm);
-  max-width: 520px;
-}
+/* --- DROPDOWNS & PREVIEW SLOTS --- */
+.ctrl-section { background: var(--surface-color); border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 14px; box-shadow: var(--shadow-sm); }
+.ctrl-label { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; display: block; }
+select { width: 100%; padding: 10px 12px; border: 1px solid var(--border-medium); border-radius: var(--radius-sm); font-size: 13px; outline: none; background: #fff; }
 
-/* --- DROPDOWN MENUS --- */
-.ctrl-section { 
-  background: var(--surface-color); 
-  border: 1px solid var(--border-light); 
-  border-radius: var(--radius-md); 
-  padding: 14px; 
-  box-shadow: var(--shadow-sm);
-}
-
-.ctrl-label { 
-  font-size: 11px; 
-  font-weight: 700; 
-  text-transform: uppercase; 
-  color: var(--text-muted); 
-  margin-bottom: 8px; 
-  display: block; 
-}
-
-select { 
-  width: 100%; 
-  padding: 10px 12px; 
-  border: 1px solid var(--border-medium); 
-  border-radius: var(--radius-sm); 
-  font-size: 13px;
-  outline: none;
-}
-
-/* --- SLOT PREVIEW (KUNCI VERTIKAL SEJAJAR STRUK) --- */
-#strip-preview { 
-  display: grid; 
-  grid-template-columns: 1fr !important; /* Semua layout dipaksa 1 kolom vertikal */
-  gap: 10px; 
-  width: 100%;
-  max-height: 260px; /* Batasan tinggi panel kanan */
-  overflow-y: auto;  /* Scrollbar otomatis jika item banyak (grid 4/6/8) */
-  padding-right: 4px;
-}
-
-/* Scrollbar styling halus */
-#strip-preview::-webkit-scrollbar { width: 4px; }
-#strip-preview::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
-
-.thumb-container { 
-  position: relative;
-  cursor: pointer; 
-  border: 1px solid var(--border-light); 
-  border-radius: var(--radius-md); 
-  overflow: hidden; 
-  background: #ffffff;
-  padding: 4px;
-}
+#strip-preview { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; width: 100%; }
+.thumb-container { position: relative; cursor: pointer; border: 1px solid var(--border-light); border-radius: var(--radius-md); overflow: hidden; background: #ffffff; padding: 4px; }
 .thumb-container.active { border-color: var(--accent-color); box-shadow: 0 0 0 3px rgba(0, 118, 255, 0.15); }
+.thumb { width: 100%; height: auto; aspect-ratio: 4/3; object-fit: cover; border-radius: 6px; display: block; }
+.thumb.empty { background: #fdfdfd; background-image: linear-gradient(45deg, #eaeaeb 25%, transparent 25%), linear-gradient(-45deg, #eaeaeb 25%, transparent 25%); background-size: 12px 12px; }
+.thumb-badge { position: absolute; top: 6px; left: 6px; background: rgba(0, 0, 0, 0.65); color: #fff; font-size: 9px; font-weight: 700; padding: 2px 5px; border-radius: 4px; }
 
-.thumb { 
-  width: 100% !important; 
-  height: auto !important;
-  aspect-ratio: 4/3 !important; 
-  object-fit: cover !important; 
-  border-radius: 6px;
-  display: block; 
-}
-.thumb.empty {
-  background: #fdfdfd !important;
-  background-image: linear-gradient(45deg, #eaeaeb 25%, transparent 25%), linear-gradient(-45deg, #eaeaeb 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #eaeaeb 75%), linear-gradient(-45deg, transparent 75%, #eaeaeb 75%) !important;
-  background-size: 12px 12px !important;
-}
+/* --- PREVIEW STRUK KASIR --- */
+#print-result { background: var(--surface-color); padding: 24px; border-radius: var(--radius-lg); border: 1px solid var(--border-light); box-shadow: var(--shadow-md); max-width: 520px; width: 100%; display: none; }
+#print-result h3 { font-size: 11px; color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase; }
+#print-img { display: block; margin: 0 auto 20px auto; max-width: 100%; max-height: 460px; object-fit: contain; border: 1px solid #ddd; border-radius: 4px; }
 
-.thumb-badge {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  background: rgba(0, 0, 0, 0.65);
-  color: #fff;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 4px;
-  z-index: 2;
-}
-
-#strip-label { display: block; font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 8px; line-height: 1.4; }
-
-/* --- STRUK HASIL FOTO --- */
-#print-result {
-  background: var(--surface-color);
-  padding: 24px;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-light);
-  box-shadow: var(--shadow-md);
-  max-width: 520px; 
-  width: 100%;
-  display: none; 
-}
-
-#print-result h3 { font-size: 13px; color: var(--text-muted); margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.05em; }
-
-#print-img { 
-  display: block;
-  margin: 0 auto 20px auto;
-  max-width: 100%; 
-  max-height: 460px; 
-  object-fit: contain;
-}
+#filter-selector-bar { display: flex; gap: 8px; justify-content: center; margin: -10px auto 20px auto; width: 100%; }
+.filter-btn { flex: 1; padding: 10px; font-size: 13px; font-weight: bold; border: 1px solid #ccc; background: #fff; color: #333; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+.active-filter { border-color: var(--accent-color) !important; background: var(--accent-color) !important; color: #fff !important; }
 
 #qr-wrap { margin-top: 15px; display: none; }
-.qr-card { text-align: center; background: #ffffff; border: 2px dashed #000; border-radius: 4px; padding: 16px; }
-#qrcode { background: #ffffff; padding: 6px; display: inline-block; margin-bottom: 12px; }
-#qrcode canvas { display: block; width: 130px !important; height: 130px !important; margin: 0 auto; }
-.qr-text-side h4 { font-family: monospace; font-size: 14px; font-weight: 700; text-transform: uppercase; }
-.qr-text-side p { font-size: 12px; color: var(--text-muted); }
+.qr-card { display: flex; align-items: center; gap: 16px; background: #ffffff; border: 2px dashed #000; border-radius: 4px; padding: 16px; }
+#qrcode { background: #ffffff; padding: 4px; display: inline-block; flex-shrink: 0; }
+#qrcode canvas, #qrcode img { display: block; width: 110px !important; height: 110px !important; }
+.qr-text-side { text-align: left; }
+.qr-text-side h4 { font-family: monospace; font-size: 14px; font-weight: 700; text-transform: uppercase; margin-bottom: 4px; }
+.qr-text-side p { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
+
+/* ==========================================================================
+   TAMPILAN RESPONSIF: AUTOMATIC MOBILE DETECTOR (HP / IPAD PENGUNJUNG)
+   ========================================================================== */
+@media (max-width: 768px) {
+  /* Matikan paksa studio laptop panitia di layar kecil HP */
+  #photobooth-app { 
+    display: none !important; 
+  }
+  
+  /* Aktifkan halaman galeri download minimalis di HP */
+  #download-page {
+    display: flex !important;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    min-height: 100vh;
+    background: #f0f0f4;
+  }
+  
+  .visitor-card {
+    background: #ffffff;
+    padding: 24px 16px;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+    max-width: 400px;
+    width: 100%;
+    text-align: center;
+    border: 1px solid rgba(0,0,0,0.02);
+  }
+  
+  .visitor-card h2 { font-size: 19px; font-weight: 800; color: #1e1e24; margin-bottom: 6px; }
+  .visitor-card .visitor-sub { font-size: 13px; color: #6c727f; margin-bottom: 20px; display: block; }
+  
+  .visitor-img-wrap {
+    width: 100%;
+    background: #fff;
+    padding: 8px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 20px;
+  }
+  
+  #visitor-img {
+    width: 100%;
+    height: auto;
+    max-height: 60vh;
+    object-fit: contain;
+    border-radius: 6px;
+    display: block;
+    margin: 0 auto;
+  }
+  
+  #btn-visitor-download {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    background: #0076ff;
+    color: #ffffff;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 14px;
+    border-radius: 12px;
+    box-shadow: 0 4px 14px rgba(0, 118, 255, 0.25);
+  }
+  
+  .visitor-footer { font-size: 11px; color: #a0aec0; margin-top: 12px; line-height: 1.5; }
+}
