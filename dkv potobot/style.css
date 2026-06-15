@@ -121,12 +121,8 @@ select { width: 100%; padding: 10px 12px; border: 1px solid var(--border-medium)
    TAMPILAN RESPONSIF: AUTOMATIC MOBILE DETECTOR (HP / IPAD PENGUNJUNG)
    ========================================================================== */
 @media (max-width: 768px) {
-  /* Matikan paksa studio laptop panitia di layar kecil HP */
-  #photobooth-app { 
-    display: none !important; 
-  }
+  #photobooth-app { display: none !important; }
   
-  /* Aktifkan halaman galeri download minimalis di HP */
   #download-page {
     display: flex !important;
     justify-content: center;
