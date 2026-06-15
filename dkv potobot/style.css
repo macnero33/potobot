@@ -91,3 +91,55 @@ select { width: 100%; padding: 8px 10px; border: 1px solid #components; border-r
 .qr-text-side { text-align: left; }
 .qr-text-side h4 { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
 .qr-text-side p { font-size: 11px; color: #4b5563; line-height: 1.4; }
+
+
+/* ==========================================================================
+   KODE TAMBAHAN AGAR RESPONSIF DI HP & IPAD (TIDAK MERUBAH TAMPILAN LAPTOP)
+   ========================================================================== */
+
+/* Batasan untuk iPad / Tablet (Lebar Layar di bawah 1024px) */
+@media screen and (max-width: 1024px) {
+  #photobooth-app {
+    max-width: 100%;
+    padding: 10px;
+  }
+  .konten-studio {
+    flex-direction: column; /* Menu kanan pindah ke bawah agar tidak sempit */
+    gap: 16px;
+  }
+  #right {
+    width: 100%; /* Menu kontrol melebar penuh di iPad */
+  }
+  #strip-preview {
+    grid-template-columns: repeat(4, 1fr); /* Preview slot foto menyesuaikan tablet */
+  }
+}
+
+/* Batasan untuk Smartphone / HP (Lebar Layar di bawah 576px) */
+@media screen and (max-width: 576px) {
+  body {
+    padding: 10px;
+  }
+  header {
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
+  }
+  #controls-bar {
+    flex-direction: column; /* Tombol foto & print tersusun vertikal di HP */
+    gap: 8px;
+  }
+  #controls-bar button {
+    width: 100%;
+  }
+  .qr-card {
+    flex-direction: column; /* QR Code dan Teks bertumpuk rapi di HP */
+    text-align: center;
+  }
+  .qr-text-side {
+    text-align: center;
+  }
+  #strip-preview {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
