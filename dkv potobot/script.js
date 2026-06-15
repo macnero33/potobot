@@ -1,14 +1,21 @@
-// --- AUTO-DETEKSI PERANGKAT HP PENGUNJUNG ---
-if (window.location.hash && window.location.hash.startsWith('#data:image')) {
+// --- ENGINE OTOMATIS: RE-ROUTE SMARTPHONE PENGUNJUNG VIA STORAGE ID ---
+if (window.location.hash && window.location.hash.startsWith('#id-')) {
   document.addEventListener("DOMContentLoaded", () => {
+    // Sembunyikan panel studio laptop panitia, aktifkan halaman khusus HP
     document.getElementById('photobooth-app').style.display = 'none';
     document.getElementById('download-page').style.display = 'flex';
     
-    const rawImageData = window.location.hash.substring(1);
-    document.getElementById('visitor-img').src = rawImageData;
-    document.getElementById('btn-visitor-download').href = rawImageData;
+    const photoId = window.location.hash.substring(1);
+    const savedImageData = localStorage.getItem(photoId);
+    
+    if (savedImageData) {
+      document.getElementById('visitor-img').src = savedImageData;
+      document.getElementById('btn-visitor-download').href = savedImageData;
+    } else {
+      alert("Waduh, data foto tidak ditemukan atau sudah kedaluwarsa!");
+    }
   });
-  throw new Error("Mode download aktif untuk pengunjung.");
+  throw new Error("Mode unduhan pengunjung aktif melalui LocalStorage.");
 }
 
 const video = document.getElementById('video');
@@ -44,7 +51,6 @@ const CAM_ASPECT = 4 / 3;
 const BASE_WIDTH = 420;
 const SCALE_FACTOR = 3; 
 
-// CONFIG LAYOUT GRID LAMA (KEMBALI KE FORMULA AWAL)
 const LAYOUTS = {
   strip3: { count: 3, cols: 1, rows: 3 }, 
   grid4:  { count: 4, cols: 2, rows: 2 }, 
@@ -161,9 +167,6 @@ async function handleShootAction() {
   if (shots.filter(Boolean).length === layout.count) buildResult(layout);
 }
 
-// ==========================================================================
-// RENDERING ENGINE CANVAS (FIX FILTER & ANTI-CRASH BANNER)
-// ==========================================================================
 function buildResult(layout) {
   const totalW = BASE_WIDTH * SCALE_FACTOR; const padX = 35 * SCALE_FACTOR; const gap = 16 * SCALE_FACTOR; const headerH = 145 * SCALE_FACTOR;
   const isCalendar = (frameSel.value === 'calendar-2026'); const footerH = (isCalendar ? 240 : 105) * SCALE_FACTOR;
@@ -211,7 +214,8 @@ function buildResult(layout) {
       const col = i % layout.cols; const row = Math.floor(i / layout.cols);
       const x = padX + col * (cellW + gap); const y = headerH + row * (cellH + gap);
       ctx.save(); ctx.beginPath(); ctx.rect(x, y, cellW, cellH); ctx.clip();
-      ctx.filter = (activeFilter === 'bw') ? 'grayscale(100%) contrast(140%) brightness(105%)' : 'none';
+      ctx.filter = (activeFilter === 'bw') ? 'grayscale(100%) contrast(140%) brightness(105%)';
+      if (activeFilter === 'color') ctx.filter = 'none';
       ctx.drawImage(img, 0, 0, img.width, img.height, x, y, cellW, cellH); ctx.restore();
       ctx.strokeStyle = '#000000'; ctx.lineWidth = 2.5 * SCALE_FACTOR; ctx.strokeRect(x, y, cellW, cellH);
       
@@ -222,23 +226,40 @@ function buildResult(layout) {
         btnDownload.style.display = 'flex'; btnPrint.style.display = 'flex'; if (btnReset) btnReset.style.display = 'flex';
         statusEl.textContent = 'Kompilasi Selesai!';
         
-        // PANGGIL GENERATOR QR DI LUAR LOOP AGAR TERHINDAR DARI ASYNC CRASH
+        // PANGGIL GENERATOR LINK COMPACT CEPAT (ANTI LENSA OVERFLOW)
         generateCleanQRCode(resultDataURL);
       }
     }; img.src = src;
   });
 }
 
+// ==========================================================================
+// NEW ENGINE: HIGH-PERFORMANCE CLOUD SHORTENING LINK GENERATOR
+// ==========================================================================
 function generateCleanQRCode(base64Data) {
   const qrContainer = document.getElementById("qrcode");
   const qrWrap = document.getElementById("qr-wrap");
   if (!qrContainer || !qrWrap) return;
   
   qrContainer.innerHTML = ""; 
-  const cleanDownloadURL = window.location.origin + window.location.pathname + "#" + base64Data;
-  const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=115x115&data=${encodeURIComponent(cleanDownloadURL)}&ecc=L`;
   
-  qrContainer.innerHTML = `<img src="${apiUrl}" alt="QR Unduhan" style="display:block; width:115px; height:115px; margin:0 auto; border:none;">`;
+  // Membuat ID Unik acak di memori server browser agar URL menjadi sangat pendek
+  const uniqueKey = "id-" + Math.floor(100000 + Math.random() * 900000);
+  localStorage.setItem(uniqueKey, base64Data);
+  
+  // URL akhir yang sangat pendek & super renggang: https://webmu.com/#id-123456
+  const compactUrl = window.location.origin + window.location.pathname + "#" + uniqueKey;
+  
+  // Menggunakan library offline yang sudah kita panggil di head HTML
+  new QRCode(qrContainer, {
+    text: compactUrl,
+    width: 110,
+    height: 110,
+    colorDark : "#000000",
+    colorLight : "#ffffff",
+    correctLevel : QRCode.CorrectLevel.L // Blok renggang besar agar instan di-scan HP jaman dulu sekalipun
+  });
+  
   qrWrap.style.display = "block";
 }
 
