@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Photobooth Receipt — Himpunan DKV</title>
+  <title>Photobooth Studio — DKV Kasir Edition</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
@@ -11,8 +11,8 @@
 
 <div id="photobooth-app">
   <header>
-    <h1>📷 Photobooth Receipt — Himpunan DKV</h1>
-    <span id="cam-status">Memuat kamera...</span>
+    <h1>📷 Photobooth Studio — Himpunan DKV</h1>
+    <span id="cam-status">Kamera Siap</span>
   </header>
 
   <div class="konten-studio">
@@ -31,10 +31,17 @@
         <button id="btn-reset">Reset Sesi</button>
       </div>
 
-      <p id="status">Kamera siap. Tekan tombol atau spasi untuk mulai foto.</p>
+      <p id="status">Tekan spasi atau klik tombol hitam untuk mulai foto.</p>
 
       <div id="print-result">
-        <h3>🎉 Pratinjau Struk Cetak:</h3>
+        <h3>🎉 Hasil Struk Cetak:</h3>
+        
+        <div id="filter-selector-bar">
+          <button id="btn-filter-color" class="filter-btn active-filter">🌈 Original</button>
+          <button id="btn-filter-bw" class="filter-btn">🖤 Retro B&W</button>
+          <button id="btn-filter-dither" class="filter-btn">📟 Kasir Halftone</button>
+        </div>
+
         <div class="receipt-preview-box">
           <img id="print-img" src="" alt="Hasil photobooth receipt">
         </div>
@@ -44,7 +51,7 @@
             <div id="qrcode"></div>
             <div class="qr-text-side">
               <h4>Scan untuk Download</h4>
-              <p id="qr-status-text">Mengunggah gambar ke cloud cloud...</p>
+              <p id="qr-status-text">Memproses tautan gambar QR...</p>
             </div>
           </div>
         </div>
@@ -54,7 +61,7 @@
     <div id="right">
       <div class="ctrl-section">
         <span class="ctrl-label">Pilih Kamera</span>
-        <select id="cam-select"><option value="">Mendeteksi kamera...</option></select>
+        <select id="cam-select"><option value="">Mendeteksi...</option></select>
       </div>
       
       <div class="ctrl-section">
@@ -84,7 +91,7 @@
       </div>
       
       <div class="ctrl-section">
-        <span class="ctrl-label">Pratinjau Slot Jepretan</span>
+        <span class="ctrl-label">Pratinjau Slot Foto</span>
         <div id="strip-preview"></div>
       </div>
     </div>
@@ -92,6 +99,7 @@
 
   <canvas id="result-canvas" style="display: none;"></canvas>
   <canvas id="shot-canvas" style="display: none;"></canvas>
+  <canvas id="filter-canvas" style="display: none;"></canvas>
   <iframe id="print-iframe" style="display: none;"></iframe>
 </div>
 
