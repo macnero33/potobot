@@ -242,12 +242,12 @@ function initPhotoboothStudio() {
   }
 
   // AKSI JIKA KLIK LANJUT
-  function handleNextAction() {
+function handleNextAction() {
     if (!isWaitingConfirmation) return;
     const layout = getLayout();
     isWaitingConfirmation = false;
     
-    // Sembunyikan tombol retake/next, aktifkan kembali tombol utama
+    // Sembunyikan tombol konfirmasi, munculkan tombol utama
     if(btnRetake) btnRetake.style.display = "none";
     if(btnNext) btnNext.style.display = "none";
     btnShoot.style.display = "inline-flex";
@@ -255,10 +255,12 @@ function initPhotoboothStudio() {
     currentActiveSlot++;
     
     if (currentActiveSlot < layout.count) {
-      btnShoot.disabled = false;
+      btnShoot.disabled = true;
       shootText.textContent = `Ambil Foto #${currentActiveSlot + 1} (Spasi)`;
-      statusEl.textContent = `Bersiap untuk foto #${currentActiveSlot + 1}.`;
       renderThumbs();
+      
+      // KUNCINYA DI SINI: Langsung memicu jepretan otomatis tanpa klik tombol hitam lagi
+      handleShootAction(); 
     } else {
       btnShoot.disabled = true;
       shootText.textContent = "Selesai!";
@@ -268,19 +270,21 @@ function initPhotoboothStudio() {
   }
 
   // AKSI JIKA KLIK RETAKE / ULANGI FOTO AKTIF
-  function handleRetakeAction() {
+function handleRetakeAction() {
     if (!isWaitingConfirmation) return;
     isWaitingConfirmation = false;
     
-    // Sembunyikan tombol retake/next, aktifkan kembali tombol utama
+    // Sembunyikan tombol konfirmasi, munculkan tombol utama
     if(btnRetake) btnRetake.style.display = "none";
     if(btnNext) btnNext.style.display = "none";
     btnShoot.style.display = "inline-flex";
-    btnShoot.disabled = false;
+    btnShoot.disabled = true;
     
     shootText.textContent = `Foto Ulang #${currentActiveSlot + 1} (Spasi)`;
-    statusEl.textContent = `Silakan ambil ulang jepretan untuk slot #${currentActiveSlot + 1}.`;
     renderThumbs();
+    
+    // KUNCINYA DI SINI: Langsung memicu jepretan ulang otomatis tanpa klik tombol hitam lagi
+    handleShootAction();
   }
 
   // Pasang Listener Klik Fisik Tombol Konfirmasi Baru
