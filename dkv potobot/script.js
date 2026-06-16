@@ -312,6 +312,8 @@ function initPhotoboothStudio() {
 
   if(btnNext) btnNext.addEventListener('click', (e) => { e.preventDefault(); handleNextAction(); });
   if(btnRetake) btnRetake.addEventListener('click', (e) => { e.preventDefault(); handleRetakeAction(); });
+  if(btnNext) btnNext.addEventListener('touchstart', (e) => { e.preventDefault(); handleNextAction(); }, { passive: false });
+  if(btnRetake) btnRetake.addEventListener('touchstart', (e) => { e.preventDefault(); handleRetakeAction(); }, { passive: false });
 
   function buildMasterStruk() {
     const layout = getLayout();
@@ -403,7 +405,6 @@ function initPhotoboothStudio() {
 
     if(!allFlattenedFrames.length) return;
 
-    // Pastikan library gifshot terpanggil aman tanpa crash
     if (typeof gifshot === 'undefined') {
       if (qrStatusText) qrStatusText.textContent = "⚠️ Library Gifshot belum masuk. Menggunakan backup gambar.";
       uploadKeCloudDanBuatQR(processActiveFilter());
@@ -485,6 +486,7 @@ function initPhotoboothStudio() {
   }
 
   btnShoot.addEventListener('click', (e) => { e.preventDefault(); triggerShoot(); });
+  btnShoot.addEventListener('touchstart', (e) => { e.preventDefault(); triggerShoot(); }, { passive: false });
 
   document.body.addEventListener('keydown', (e) => {
     if (e.code === 'Space') {
@@ -516,7 +518,12 @@ function initPhotoboothStudio() {
   function periksaModePengunjungHP() {
     const hash = window.location.hash;
     if (hash && (hash.startsWith('#dl') || hash.includes('?f='))) {
-      // Pembongkaran live murni berbasis memori URL tanpa merusak layout
+      const appStudio = document.getElementById('photobooth-app');
+      const pageDownloadHP = document.getElementById('visitor-download-page');
+      
+      if (appStudio) appStudio.style.display = 'none';
+      if (pageDownloadHP) pageDownloadHP.style.display = 'flex';
+
       try {
         const bagianParameter = hash.includes('?') ? hash.split('?')[1] : '';
         if (!bagianParameter) return;
@@ -525,10 +532,11 @@ function initPhotoboothStudio() {
         const idFoto = searchParams.get('f');
         const idGif = searchParams.get('v');
 
-        // Buka link tab baru download otomatis tanpa menghancurkan tampilan laptop panitia
-        if (idFoto && idGif) {
-          window.location.href = `https://i.imgur.com/${idGif}.gif`; 
-        }
+        const btnDlPhoto = document.getElementById('btn-dl-photo');
+        const btnDlVideo = document.getElementById('btn-dl-video');
+
+        if (idFoto && btnDlPhoto) btnDlPhoto.href = `https://i.imgur.com/${idFoto}.jpg`;
+        if (idGif && btnDlVideo) btnDlVideo.href = `https://i.imgur.com/${idGif}.gif`;
       } catch (e) {
         console.error(e);
       }
