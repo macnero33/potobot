@@ -533,22 +533,48 @@ function initPhotoboothStudio() {
   }
 
   // Jalankan detektor otomatis tepat setelah inisialisasi awal aplikasi
-  periksaModePengunjungHP();
+ // ==========================================================================
+  // ENGINE DETEKSI HP PENGUNJUNG: MEMBONGKAR LINK QR SECARA SEMPURNA
+  // ==========================================================================
+  function periksaModePengunjungHP() {
+    const hash = window.location.hash;
+    
+    // Deteksi tanda hash #dl atau #download dari QR Code smartphone
+    if (hash && (hash.startsWith('#dl') || hash.includes('?f='))) {
+      // Sembunyikan container studio laptop agar layar HP fokus ke tombol unduh
+      const appStudio = document.getElementById('photobooth-app');
+      const pageDownloadHP = document.getElementById('visitor-download-page');
+      
+      if (appStudio) appStudio.style.display = 'none';
+      if (pageDownloadHP) pageDownloadHP.style.display = 'flex';
 
-  function triggerShoot() {
-    if (!shooting && !btnShoot.disabled && !isWaitingConfirmation) { handleShootAction(); }
-  }
+      try {
+        // Ambil bagian parameter setelah tanda tanya (?) secara akurat
+        const bagianParameter = hash.includes('?') ? hash.split('?')[1] : '';
+        if (!bagianParameter) return;
 
-  btnShoot.addEventListener('click', (e) => { e.preventDefault(); triggerShoot(); });
+        const searchParams = new URLSearchParams(bagianParameter);
+        const idFoto = searchParams.get('f');
+        const idGif = searchParams.get('v');
 
-  document.body.addEventListener('keydown', (e) => {
-    if (e.code === 'Space') {
-      if (document.activeElement.tagName !== 'SELECT') {
-        e.preventDefault();
-        if (isWaitingConfirmation) { handleNextAction(); } else { triggerShoot(); }
+        const btnDlPhoto = document.getElementById('btn-dl-photo');
+        const btnDlVideo = document.getElementById('btn-dl-video');
+
+        // Sambungkan link tombol unduhan langsung ke server asset file aslinya di Imgur
+        if (idFoto && btnDlPhoto) {
+          btnDlPhoto.href = `https://i.imgur.com/${idFoto}.jpg`;
+        }
+        if (idGif && btnDlVideo) {
+          btnDlVideo.href = `https://i.imgur.com/${idGif}.gif`;
+        }
+      } catch (e) {
+        console.error("Gagal membongkar parameter QR Code:", e);
       }
     }
-  });
+  }
+
+  // Jalankan detektor otomatis tepat setelah inisialisasi awal aplikasi
+  periksaModePengunjungHP();
 
   if(btnDownload) {
     btnDownload.addEventListener('click', () => {
