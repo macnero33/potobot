@@ -9,7 +9,7 @@ function initPhotoboothStudio() {
   const btnShoot = document.getElementById('btn-shoot');
   const shootText = document.getElementById('shoot-text');
   const btnDownload = document.getElementById('btn-download');
-  const btnPrint = document.getElementById('btn-print');
+  const btnPrint = document.getElementById('btnPrint') || document.getElementById('btn-print');
   const btnReset = document.getElementById('btn-reset');
   const layoutSel = document.getElementById('layout-select');
   const frameSel = document.getElementById('frame-select');
@@ -26,7 +26,8 @@ function initPhotoboothStudio() {
   const btnRetake = document.getElementById('btn-action-retake');
   const btnNext = document.getElementById('btn-action-next');
 
-  let shots = [];
+  let shots = [];       // Menyimpan foto diam untuk cetak struk
+  let gifShots = [];    // Menyimpan frame burst untuk dijadikan GIF Boomerang
   let shooting = false;
   let stream = null;
   let rawStrukCanvas = null; 
@@ -47,7 +48,6 @@ function initPhotoboothStudio() {
 
   function getLayout() { return LAYOUTS[layoutSel.value]; }
 
-  // AUDIO CORE ALIVE
   function playBeepSound(isFinal) {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -134,10 +134,8 @@ function initPhotoboothStudio() {
   if(btnFilterBW) btnFilterBW.addEventListener('click', () => setFilterUI('bw'));
   if(btnFilterDither) btnFilterDither.addEventListener('click', () => setFilterUI('dither'));
 
-  // LOCK CAMERA STREAM
   async function startCam(deviceId) {
     if (stream) {
-      // Stream dikunci agar tidak me-refresh select-option saat loop foto berjalan
       if (shooting || isWaitingConfirmation) return; 
       stream.getTracks().forEach(t => t.stop());
     }
@@ -170,6 +168,7 @@ function initPhotoboothStudio() {
 
   function resetSesiTotal() {
     shots = [];
+    gifShots = [];
     currentActiveSlot = 0;
     isWaitingConfirmation = false;
     
@@ -181,14 +180,16 @@ function initPhotoboothStudio() {
     if(btnNext) btnNext.style.display = "none";
     
     statusEl.textContent = "Sesi kosong. Bersiap untuk jepretan pertama.";
-    btnDownload.style.display = 'none'; btnPrint.style.display = 'none'; btnReset.style.display = 'none';
-    printResult.style.display = 'none'; 
+    if(btnDownload) btnDownload.style.display = 'none'; 
+    if(btnPrint) btnPrint.style.display = 'none'; 
+    if(btnReset) btnReset.style.display = 'none';
+    if(printResult) printResult.style.display = 'none'; 
     rawStrukCanvas = null; currentFilter = 'dither';
     setFilterUI('dither');
     renderThumbs();
   }
 
-  btnReset.addEventListener('click', resetSesiTotal);
+  if(btnReset) btnReset.addEventListener('click', resetSesiTotal);
 
   function renderThumbs() {
     const layout = getLayout();
@@ -224,13 +225,28 @@ function initPhotoboothStudio() {
     return c.toDataURL('image/jpeg', 0.9);
   }
 
-  // ENGINE JEP RET INTI (AUDIO + TIMER SELALU AKTIF)
+  // LOGIKA AMBIL BURST FRAME UNTUK BOOMERANG
+  async function captureBurstFrames() {
+    const currentSlotFrames = [];
+    // Rekam 6 frame cepat dalam jeda singkat untuk membuat efek gerak putar balik (Boomerang)
+    for (let i = 0; i < 6; i++) {
+      currentSlotFrames.push(captureFrame());
+      await new Promise(r => setTimeout(r, 120));
+    }
+    // Gabungkan kembali secara mundur agar menjadi loop boomerang murni
+    const reversed = [...currentSlotFrames].reverse().slice(1, -1);
+    gifShots[currentActiveSlot] = currentSlotFrames.concat(reversed);
+  }
+
+  // ENGINE JEP RET INTI DENGAN FITUR BURST REKAMAN BOOMERANG
   async function handleShootAction() {
     if (shooting) return; 
     shooting = true;
     btnShoot.disabled = true;
     
-    btnDownload.style.display = 'none'; btnPrint.style.display = 'none'; printResult.style.display = 'none';
+    if(btnDownload) btnDownload.style.display = 'none'; 
+    if(btnPrint) btnPrint.style.display = 'none'; 
+    if(printResult) printResult.style.display = 'none';
 
     const timerDelay = parseInt(timerSel.value) || 0;
     if (timerDelay > 0 && countdownEl) {
@@ -250,10 +266,15 @@ function initPhotoboothStudio() {
       setTimeout(() => flash.style.opacity = '0', 120);
     }
     
+    // Simpan foto static utama untuk dicetak di kertas kasir
     shots[currentActiveSlot] = captureFrame(); 
     renderThumbs();
+
+    // Jalankan perekaman burst instan di latar belakang untuk file GIF smartphone
+    if (statusEl) statusEl.textContent = "Merekam Boomerang...";
+    await captureBurstFrames();
+
     shooting = false;
-    
     isWaitingConfirmation = true;
     btnShoot.style.display = "none";
     if(btnRetake) btnRetake.style.display = "inline-flex";
@@ -280,7 +301,7 @@ function initPhotoboothStudio() {
     } else {
       btnShoot.disabled = true;
       shootText.textContent = "Selesai!";
-      statusEl.textContent = "Menyusun struk belanja kasir...";
+      statusEl.textContent = "Menyusun struk belanja kasir & merender GIF...";
       buildMasterStruk();
     }
   }
@@ -300,8 +321,6 @@ function initPhotoboothStudio() {
 
   if(btnNext) btnNext.addEventListener('click', (e) => { e.preventDefault(); handleNextAction(); });
   if(btnRetake) btnRetake.addEventListener('click', (e) => { e.preventDefault(); handleRetakeAction(); });
-  if(btnNext) btnNext.addEventListener('touchstart', (e) => { e.preventDefault(); handleNextAction(); }, { passive: false });
-  if(btnRetake) btnRetake.addEventListener('touchstart', (e) => { e.preventDefault(); handleRetakeAction(); }, { passive: false });
 
   // STRUK GENERATOR BUILDER
   function buildMasterStruk() {
@@ -369,25 +388,58 @@ function initPhotoboothStudio() {
       ctx.font = `${9 * SCALE_FACTOR}px "Courier New", Courier, monospace`; ctx.fillText('HIMPUNAN MAHASISWA DKV', totalW / 2, startFooterY + (88 * SCALE_FACTOR));
     }
 
-    printResult.style.display = 'block';
-    btnDownload.style.display = 'inline-flex'; btnPrint.style.display = 'inline-flex'; btnReset.style.display = 'inline-flex';
+    if(printResult) printResult.style.display = 'block';
+    if(btnDownload) btnDownload.style.display = 'inline-flex'; 
+    if(btnPrint) btnPrint.style.display = 'inline-flex'; 
+    if(btnReset) btnReset.style.display = 'inline-flex';
     btnShoot.style.display = "inline-flex";
     btnShoot.disabled = false;
     shootText.textContent = "Sesi Selesai ✓";
-    statusEl.textContent = "Struk dimuat!";
+    statusEl.textContent = "Struk dimuat! Mengonversi Boomerang ke QR...";
 
-    const finalRenderedData = processActiveFilter();
-    uploadKeCloudDanBuatQR(finalRenderedData);
+    processActiveFilter();
+    
+    // CORE SUNTIKAN OPSI A: Kompilasi semua rekaman burst menjadi animasi GIF terpadu
+    compileAllShotsToGif();
   }
 
-  // CLOUD UPLOADER QR (JALUR 1)
-  function uploadKeCloudDanBuatQR(base64Image) {
+  // PROGRAM MERENDER SEMUA HASIL SLOT MENJADI 1 FILE GIF BOOMERANG ANIMASI
+  function compileAllShotsToGif() {
+    if (qrStatusText) qrStatusText.textContent = "⏳ Merangkai Animasi Boomerang (GIF)...";
+    
+    // Satukan semua frame dari seluruh slot foto yang valid
+    let allFlattenedFrames = [];
+    gifShots.forEach(slotFrames => {
+      if(slotFrames && slotFrames.length) {
+        allFlattenedFrames = allFlattenedFrames.concat(slotFrames);
+      }
+    });
+
+    if(!allFlattenedFrames.length) return;
+
+    gifshot.createGIF({
+      images: allFlattenedFrames,
+      gifWidth: 400,
+      gifHeight: 300,
+      interval: 0.1, // Kecepatan gerak animasi fps
+      numWorkers: 2
+    }, function (obj) {
+      if (!obj.error) {
+        // Kirim hasil akhir berupa file .gif bergerak langsung ke server Imgur Cloud QR
+        uploadKeCloudDanBuatQR(obj.image);
+      } else {
+        if (qrStatusText) qrStatusText.textContent = "⚠️ Gagal membuat Boomerang. Menggunakan backup gambar biasa.";
+        uploadKeCloudDanBuatQR(processActiveFilter());
+      }
+    });
+  }
+
+  function uploadKeCloudDanBuatQR(base64Data) {
     const qrContainer = document.getElementById("qrcode");
     if (!qrContainer) return;
     qrContainer.innerHTML = ""; 
-    if (qrStatusText) { qrStatusText.textContent = "⏳ Memproses QR Code Unduhan..."; qrStatusText.style.color = "#854d0e"; }
 
-    const cleanBase64 = base64Image.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
+    const cleanBase64 = base64Data.replace(/^data:image\/(png|jpeg|jpg|gif);base64,/, "");
     const clientId = "644e5ccb483b8bd"; 
 
     const formData = new FormData();
@@ -402,24 +454,23 @@ function initPhotoboothStudio() {
     .then(res => res.json())
     .then(response => {
       if (response.success && response.data.link) {
+        // Imgur otomatis mengenali format ekstensi file .gif bergerak dengan sempurna!
         const shortUrl = response.data.link; 
         new QRCode(qrContainer, { text: shortUrl, width: 100, height: 100, colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.M });
-        if (qrStatusText) { qrStatusText.textContent = "✓ QR Code Aktif! Silakan scan untuk unduh gambar struk."; qrStatusText.style.color = "#15803d"; }
+        if (qrStatusText) { qrStatusText.textContent = "✓ Boomerang GIF Aktif! Silakan scan untuk unduh versi gerak ke HP."; qrStatusText.style.color = "#15803d"; }
       } else { throw new Error(); }
     })
     .catch(() => {
       qrContainer.innerHTML = "<b style='color:#b91c1c;font-size:11px;'>OFFLINE</b>";
-      if (qrStatusText) { qrStatusText.textContent = "⚠️ Internet terputus. Gunakan 'Download JPG' di laptop."; qrStatusText.style.color = "#b91c1c"; }
+      if (qrStatusText) { qrStatusText.textContent = "⚠️ Offline. Gunakan 'Download JPG' di laptop."; qrStatusText.style.color = "#b91c1c"; }
     });
   }
 
-  // TRIGGER LOGIC
   function triggerShoot() {
     if (!shooting && !btnShoot.disabled && !isWaitingConfirmation) { handleShootAction(); }
   }
 
   btnShoot.addEventListener('click', (e) => { e.preventDefault(); triggerShoot(); });
-  btnShoot.addEventListener('touchstart', (e) => { e.preventDefault(); triggerShoot(); }, { passive: false });
 
   document.body.addEventListener('keydown', (e) => {
     if (e.code === 'Space') {
@@ -430,19 +481,23 @@ function initPhotoboothStudio() {
     }
   });
 
-  btnDownload.addEventListener('click', () => {
-    const finalImageURL = processActiveFilter();
-    if (!finalImageURL) return;
-    const a = document.createElement('a'); a.download = `photobooth-dkv-${Date.now()}.jpg`; a.href = finalImageURL; a.click();
-  });
+  if(btnDownload) {
+    btnDownload.addEventListener('click', () => {
+      const finalImageURL = processActiveFilter();
+      if (!finalImageURL) return;
+      const a = document.createElement('a'); a.download = `photobooth-dkv-${Date.now()}.jpg`; a.href = finalImageURL; a.click();
+    });
+  }
 
-  btnPrint.addEventListener('click', () => {
-    const imageToPrint = processActiveFilter();
-    if (!imageToPrint) return;
-    const doc = printIframe.contentWindow.document; doc.open();
-    doc.write(`<html><head><style>@page{margin:0;}html,body{margin:0;padding:0;width:100%;display:flex;justify-content:center;} .box{width:420px;} img{width:100%;height:auto;display:block;}</style></head><body><div class="box"><img src="${imageToPrint}"></div><script>window.onload=function(){setTimeout(function(){window.print();},200);};<\/script></body></html>`);
-    doc.close();
-  });
+  if(btnPrint) {
+    btnPrint.addEventListener('click', () => {
+      const imageToPrint = processActiveFilter();
+      if (!imageToPrint) return;
+      const doc = printIframe.contentWindow.document; doc.open();
+      doc.write(`<html><head><style>@page{margin:0;}html,body{margin:0;padding:0;width:100%;display:flex;justify-content:center;} .box{width:420px;} img{width:100%;height:auto;display:block;}</style></head><body><div class="box"><img src="${imageToPrint}"></div><script>window.onload=function(){setTimeout(function(){window.print();},200);};<\/script></body></html>`);
+      doc.close();
+    });
+  }
 
   loadCameras();
   renderThumbs();
