@@ -66,7 +66,7 @@ header h1 { font-size: 16px; font-weight: 700; }
 
 .ctrl-section { background: #ffffff; border-radius: 12px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
 .ctrl-label { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #6b7280; margin-bottom: 6px; display: block; }
-select { width: 100%; padding: 8px 10px; border: 1px solid #components; border-radius: 6px; font-size: 13px; background: #fff; }
+select { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; background: #fff; }
 
 #strip-preview { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 6px; }
 .thumb-container { position: relative; border: 1px solid #d1d5db; border-radius: 6px; overflow: hidden; background: #fff; padding: 2px; }
@@ -92,86 +92,7 @@ select { width: 100%; padding: 8px 10px; border: 1px solid #components; border-r
 .qr-text-side h4 { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
 .qr-text-side p { font-size: 11px; color: #4b5563; line-height: 1.4; }
 
-
-/* ==========================================================================
-   KODE TAMBAHAN AGAR RESPONSIF DI HP & IPAD (TIDAK MERUBAH TAMPILAN LAPTOP)
-   ========================================================================== */
-
-/* Batasan untuk iPad / Tablet (Lebar Layar di bawah 1024px) */
-@media screen and (max-width: 1024px) {
-  #photobooth-app {
-    max-width: 100%;
-    padding: 10px;
-  }
-  .konten-studio {
-    flex-direction: column; /* Menu kanan pindah ke bawah agar tidak sempit */
-    gap: 16px;
-  }
-  #right {
-    width: 100%; /* Menu kontrol melebar penuh di iPad */
-  }
-  #strip-preview {
-    grid-template-columns: repeat(4, 1fr); /* Preview slot foto menyesuaikan tablet */
-  }
-}
-
-/* Batasan untuk Smartphone / HP (Lebar Layar di bawah 576px) */
-@media screen and (max-width: 576px) {
-  body {
-    padding: 10px;
-  }
-  header {
-    flex-direction: column;
-    gap: 8px;
-    text-align: center;
-  }
-  #controls-bar {
-    flex-direction: column; /* Tombol foto & print tersusun vertikal di HP */
-    gap: 8px;
-  }
-  #controls-bar button {
-    width: 100%;
-  }
-  .qr-card {
-    flex-direction: column; /* QR Code dan Teks bertumpuk rapi di HP */
-    text-align: center;
-  }
-  .qr-text-side {
-    text-align: center;
-  }
-  #strip-preview {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-
-/* ==========================================================================
-   STYLING KHUSUS UNTUK TOMBOL INTERACTIVE PER FOTO (RETAKE & NEXT)
-   ========================================================================== */
-#btn-action-retake, #btn-action-next {
-  flex: 1;
-  padding: 14px 20px !important; /* Membuat tombol tebal dan besar agar mudah ditekan jari */
-  font-size: 13px !important;
-  font-weight: 700 !important;
-  border-radius: 8px !important; /* Menyamakan kelengkungan sudut dengan tombol utama */
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  border: none;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-  transition: opacity 0.2s;
-}
-
-#btn-action-retake:active, #btn-action-next:active {
-  opacity: 0.85; /* Efek visual feedback saat tombol ditekan di layar sentuh */
-}
-
-
-/* Styling Khusus Tombol Konfirmasi Per Foto Agar Empuk */
+/* STYLING KHUSUS UNTUK DUA TOMBOL INTERACTIVE PER FOTO (RETAKE & NEXT) */
 #btn-action-retake, #btn-action-next {
   flex: 1;
   padding: 14px 20px !important;
@@ -184,11 +105,15 @@ select { width: 100%; padding: 8px 10px; border: 1px solid #components; border-r
   justify-content: center;
   gap: 8px;
   text-transform: uppercase;
-  letter-spacing: 0.02em;
   border: none;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-  transition: opacity 0.2s;
 }
-#btn-action-retake:active, #btn-action-next:active {
-  opacity: 0.85;
+
+/* RESPONSIVE LAYOUT UNTUK HP & IPAD PENGUNJUNG */
+@media screen and (max-width: 1024px) {
+  .konten-studio { flex-direction: column; gap: 16px; }
+  #right { width: 100%; }
+}
+@media screen and (max-width: 576px) {
+  #controls-bar { flex-direction: column; gap: 8px; }
+  .qr-card { flex-direction: column; text-align: center; }
 }
