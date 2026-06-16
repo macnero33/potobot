@@ -169,3 +169,26 @@ select { width: 100%; padding: 8px 10px; border: 1px solid #components; border-r
 #btn-action-retake:active, #btn-action-next:active {
   opacity: 0.85; /* Efek visual feedback saat tombol ditekan di layar sentuh */
 }
+
+
+/* Styling Khusus Tombol Konfirmasi Per Foto Agar Empuk */
+#btn-action-retake, #btn-action-next {
+  flex: 1;
+  padding: 14px 20px !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  border-radius: 8px !important;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  transition: opacity 0.2s;
+}
+#btn-action-retake:active, #btn-action-next:active {
+  opacity: 0.85;
+}
