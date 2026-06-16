@@ -9,7 +9,7 @@ function initPhotoboothStudio() {
   const btnShoot = document.getElementById('btn-shoot');
   const shootText = document.getElementById('shoot-text');
   const btnDownload = document.getElementById('btn-download');
-  const btnPrint = document.getElementById('btnPrint') || document.getElementById('btn-print');
+  const btnPrint = document.getElementById('btn-print');
   const btnReset = document.getElementById('btn-reset');
   const layoutSel = document.getElementById('layout-select');
   const frameSel = document.getElementById('frame-select');
@@ -26,8 +26,8 @@ function initPhotoboothStudio() {
   const btnRetake = document.getElementById('btn-action-retake');
   const btnNext = document.getElementById('btn-action-next');
 
-  let shots = [];       // Menyimpan foto diam untuk cetak struk
-  let gifShots = [];    // Menyimpan frame burst untuk dijadikan GIF Boomerang
+  let shots = [];       
+  let gifShots = [];    
   let shooting = false;
   let stream = null;
   let rawStrukCanvas = null; 
@@ -62,7 +62,6 @@ function initPhotoboothStudio() {
     } catch (e) {}
   }
 
-  // FILTER ENGINE HALFTONE KASIR
   function applyDitherFilter(ctx, width, height) {
     const imgData = ctx.getImageData(0, 0, width, height);
     const d = imgData.data;
@@ -77,7 +76,6 @@ function initPhotoboothStudio() {
     ctx.putImageData(imgData, 0, 0);
   }
 
-  // FILTER RETRO B&W
   function applyGrayscaleFilter(ctx, width, height) {
     const imgData = ctx.getImageData(0, 0, width, height);
     const d = imgData.data;
@@ -106,7 +104,7 @@ function initPhotoboothStudio() {
     }
 
     const outputDataURL = finalCanvas.toDataURL('image/jpeg', 0.85);
-    printImg.src = outputDataURL;
+    if(printImg) printImg.src = outputDataURL;
     return outputDataURL;
   }
 
@@ -218,27 +216,24 @@ function initPhotoboothStudio() {
     if (vw / vh > targetAspect) { sWidth = vh * targetAspect; sx = (vw - sWidth) / 2; } 
     else { sHeight = vw / targetAspect; sy = (vh - sHeight) / 2; }
 
-    c.width = 640; c.height = 480;
+    c.width = 400; c.height = 300; // Ukuran optimal frame agar konversi cepat
     const ctx = c.getContext('2d');
-    ctx.save(); ctx.translate(640, 0); ctx.scale(-1, 1);
-    ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, 640, 480); ctx.restore();
-    return c.toDataURL('image/jpeg', 0.9);
+    ctx.save(); ctx.translate(400, 0); ctx.scale(-1, 1);
+    ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, 400, 300); ctx.restore();
+    return c.toDataURL('image/jpeg', 0.8);
   }
 
-  // LOGIKA AMBIL BURST FRAME UNTUK BOOMERANG
+  // AMBIL BURST LANGSUNG DARI MEMORI CANVAS ELEMEN TANPA RE-INIT WEBCAM
   async function captureBurstFrames() {
     const currentSlotFrames = [];
-    // Rekam 6 frame cepat dalam jeda singkat untuk membuat efek gerak putar balik (Boomerang)
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 5; i++) {
       currentSlotFrames.push(captureFrame());
-      await new Promise(r => setTimeout(r, 120));
+      await new Promise(r => setTimeout(r, 100));
     }
-    // Gabungkan kembali secara mundur agar menjadi loop boomerang murni
     const reversed = [...currentSlotFrames].reverse().slice(1, -1);
     gifShots[currentActiveSlot] = currentSlotFrames.concat(reversed);
   }
 
-  // ENGINE JEP RET INTI DENGAN FITUR BURST REKAMAN BOOMERANG
   async function handleShootAction() {
     if (shooting) return; 
     shooting = true;
@@ -266,12 +261,11 @@ function initPhotoboothStudio() {
       setTimeout(() => flash.style.opacity = '0', 120);
     }
     
-    // Simpan foto static utama untuk dicetak di kertas kasir
+    // Simpan data master diam
     shots[currentActiveSlot] = captureFrame(); 
     renderThumbs();
 
-    // Jalankan perekaman burst instan di latar belakang untuk file GIF smartphone
-    if (statusEl) statusEl.textContent = "Merekam Boomerang...";
+    // Rekam frame sisa untuk loop gerak
     await captureBurstFrames();
 
     shooting = false;
@@ -280,7 +274,7 @@ function initPhotoboothStudio() {
     if(btnRetake) btnRetake.style.display = "inline-flex";
     if(btnNext) btnNext.style.display = "inline-flex";
     
-    statusEl.innerHTML = `Foto #${currentActiveSlot + 1} tertangkap! <br>Pilih aksi selanjutnya di bawah.`;
+    statusEl.innerHTML = `Foto #${currentActiveSlot + 1} aman! <br>Pilih opsi di bawah untuk lanjut.`;
   }
 
   function handleNextAction() {
@@ -297,7 +291,7 @@ function initPhotoboothStudio() {
     if (currentActiveSlot < layout.count) {
       shootText.textContent = `Ambil Foto #${currentActiveSlot + 1} (Spasi)`;
       renderThumbs();
-      setTimeout(() => { handleShootAction(); }, 150);
+      setTimeout(() => { handleShootAction(); }, 200);
     } else {
       btnShoot.disabled = true;
       shootText.textContent = "Selesai!";
@@ -316,13 +310,12 @@ function initPhotoboothStudio() {
     
     shootText.textContent = `Foto Ulang #${currentActiveSlot + 1} (Spasi)`;
     renderThumbs();
-    setTimeout(() => { handleShootAction(); }, 150);
+    setTimeout(() => { handleShootAction(); }, 200);
   }
 
   if(btnNext) btnNext.addEventListener('click', (e) => { e.preventDefault(); handleNextAction(); });
   if(btnRetake) btnRetake.addEventListener('click', (e) => { e.preventDefault(); handleRetakeAction(); });
 
-  // STRUK GENERATOR BUILDER
   function buildMasterStruk() {
     const layout = getLayout();
     const isCalendar = (frameSel.value === 'calendar-2026');
@@ -398,16 +391,12 @@ function initPhotoboothStudio() {
     statusEl.textContent = "Struk dimuat! Mengonversi Boomerang ke QR...";
 
     processActiveFilter();
-    
-    // CORE SUNTIKAN OPSI A: Kompilasi semua rekaman burst menjadi animasi GIF terpadu
     compileAllShotsToGif();
   }
 
-  // PROGRAM MERENDER SEMUA HASIL SLOT MENJADI 1 FILE GIF BOOMERANG ANIMASI
   function compileAllShotsToGif() {
     if (qrStatusText) qrStatusText.textContent = "⏳ Merangkai Animasi Boomerang (GIF)...";
     
-    // Satukan semua frame dari seluruh slot foto yang valid
     let allFlattenedFrames = [];
     gifShots.forEach(slotFrames => {
       if(slotFrames && slotFrames.length) {
@@ -421,30 +410,22 @@ function initPhotoboothStudio() {
       images: allFlattenedFrames,
       gifWidth: 400,
       gifHeight: 300,
-      interval: 0.1, // Kecepatan gerak animasi fps
+      interval: 0.1, 
       numWorkers: 2
     }, function (obj) {
       if (!obj.error) {
-        // Kirim hasil akhir berupa file .gif bergerak langsung ke server Imgur Cloud QR
         uploadKeCloudDanBuatQR(obj.image);
       } else {
-        if (qrStatusText) qrStatusText.textContent = "⚠️ Gagal membuat Boomerang. Menggunakan backup gambar biasa.";
+        if (qrStatusText) qrStatusText.textContent = "⚠️ Gagal membuat Boomerang. Menggunakan backup gambar.";
         uploadKeCloudDanBuatQR(processActiveFilter());
       }
     });
   }
 
- // ==========================================================================
-  // CORE ENGINE JALUR 1: INTERNET PARALEL UPLOADER & QR CODE GENERATOR
-  // ==========================================================================
   function uploadKeCloudDanBuatQR(base64GifData) {
     const qrContainer = document.getElementById("qrcode");
     if (!qrContainer) return;
     qrContainer.innerHTML = ""; 
-    if (qrStatusText) { 
-      qrStatusText.textContent = "⏳ Memproses Link Foto & Video untuk Smartphone..."; 
-      qrStatusText.style.color = "#854d0e"; 
-    }
 
     const clientId = "644e5ccb483b8bd"; 
     
@@ -460,22 +441,18 @@ function initPhotoboothStudio() {
     formDataGif.append("image", cleanGif);
     formDataGif.append("type", "base64");
 
-    // Upload Foto (.jpg) dan Video Boomerang (.gif) secara paralel bersamaan
     Promise.all([
       fetch("https://api.imgur.com/3/image", { method: "POST", headers: { Authorization: `Client-ID ${clientId}` }, body: formDataFoto }).then(r => r.json()),
       fetch("https://api.imgur.com/3/image", { method: "POST", headers: { Authorization: `Client-ID ${clientId}` }, body: formDataGif }).then(r => r.json())
     ])
     .then(([resFoto, resGif]) => {
       if (resFoto.success && resGif.success) {
-        // Ekstrak id unik dari link gambar yang berhasil diupload
         const idFoto = resFoto.data.id;
         const idGif = resGif.data.id;
 
-        // Racik URL dinamis membawa kedua parameter file menuju web online-mu
         const baseAppUrl = window.location.origin + window.location.pathname;
         const finalUrlWithParams = `${baseAppUrl}#dl?f=${idFoto}&v=${idGif}`;
 
-        // Render QR Code dengan link cerdas super pendek berisi penunjuk file
         new QRCode(qrContainer, { 
           text: finalUrlWithParams, 
           width: 100, 
@@ -486,7 +463,7 @@ function initPhotoboothStudio() {
         });
 
         if (qrStatusText) { 
-          qrStatusText.textContent = "✓ QR Code Siap! Scan untuk mengunduh Foto & Video di smartphone pengunjung."; 
+          qrStatusText.textContent = "✓ QR Code Aktif! Scan untuk download Foto + Boomerang."; 
           qrStatusText.style.color = "#15803d"; 
         }
       } else { throw new Error(); }
@@ -494,87 +471,26 @@ function initPhotoboothStudio() {
     .catch(() => {
       qrContainer.innerHTML = "<b style='color:#b91c1c;font-size:11px;'>OFFLINE</b>";
       if (qrStatusText) { 
-        qrStatusText.textContent = "⚠️ Internet terputus. Silakan unduh manual menggunakan tombol laptop."; 
+        qrStatusText.textContent = "⚠️ Gagal upload cloud. Silakan download manual di laptop."; 
         qrStatusText.style.color = "#b91c1c"; 
       }
     });
   }
 
-  // ==========================================================================
-  // ENGINE DETEKSY HP PENGUNJUNG: MEMBONGKAR PARAMETER QR CODE SECARA LIVE
-  // ==========================================================================
-  function periksaModePengunjungHP() {
-    const hash = window.location.hash;
-    if (hash && hash.startsWith('#dl')) {
-      // Sembunyikan container studio laptop agar tidak merusak layar HP
-      const appStudio = document.getElementById('photobooth-app');
-      const pageDownloadHP = document.getElementById('visitor-download-page');
-      
-      if (appStudio) appStudio.style.display = 'none';
-      if (pageDownloadHP) pageDownloadHP.style.display = 'flex';
-
-      // Ambil parameter id file foto dan gif dari hash link URL
-      try {
-        const paramsStr = hash.split('?')[1];
-        const searchParams = new URLSearchParams(paramsStr);
-        const idFoto = searchParams.get('f');
-        const idGif = searchParams.get('v');
-
-        const btnDlPhoto = document.getElementById('btn-dl-photo');
-        const btnDlVideo = document.getElementById('btn-dl-video');
-
-        // Sambungkan link tombol unduhan langsung ke server asset file aslinya
-        if (idFoto && btnDlPhoto) btnDlPhoto.href = `https://i.imgur.com/${idFoto}.jpg`;
-        if (idGif && btnDlVideo) btnDlVideo.href = `https://i.imgur.com/${idGif}.gif`;
-      } catch (e) {
-        alert("Waduh, tautan download foto tidak valid.");
-      }
-    }
+  function triggerShoot() {
+    if (!shooting && !btnShoot.disabled && !isWaitingConfirmation) { handleShootAction(); }
   }
 
-  // Jalankan detektor otomatis tepat setelah inisialisasi awal aplikasi
- // ==========================================================================
-  // ENGINE DETEKSI HP PENGUNJUNG: MEMBONGKAR LINK QR SECARA SEMPURNA
-  // ==========================================================================
-  function periksaModePengunjungHP() {
-    const hash = window.location.hash;
-    
-    // Deteksi tanda hash #dl atau #download dari QR Code smartphone
-    if (hash && (hash.startsWith('#dl') || hash.includes('?f='))) {
-      // Sembunyikan container studio laptop agar layar HP fokus ke tombol unduh
-      const appStudio = document.getElementById('photobooth-app');
-      const pageDownloadHP = document.getElementById('visitor-download-page');
-      
-      if (appStudio) appStudio.style.display = 'none';
-      if (pageDownloadHP) pageDownloadHP.style.display = 'flex';
+  btnShoot.addEventListener('click', (e) => { e.preventDefault(); triggerShoot(); });
 
-      try {
-        // Ambil bagian parameter setelah tanda tanya (?) secara akurat
-        const bagianParameter = hash.includes('?') ? hash.split('?')[1] : '';
-        if (!bagianParameter) return;
-
-        const searchParams = new URLSearchParams(bagianParameter);
-        const idFoto = searchParams.get('f');
-        const idGif = searchParams.get('v');
-
-        const btnDlPhoto = document.getElementById('btn-dl-photo');
-        const btnDlVideo = document.getElementById('btn-dl-video');
-
-        // Sambungkan link tombol unduhan langsung ke server asset file aslinya di Imgur
-        if (idFoto && btnDlPhoto) {
-          btnDlPhoto.href = `https://i.imgur.com/${idFoto}.jpg`;
-        }
-        if (idGif && btnDlVideo) {
-          btnDlVideo.href = `https://i.imgur.com/${idGif}.gif`;
-        }
-      } catch (e) {
-        console.error("Gagal membongkar parameter QR Code:", e);
+  document.body.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') {
+      if (document.activeElement.tagName !== 'SELECT') {
+        e.preventDefault();
+        if (isWaitingConfirmation) { handleNextAction(); } else { triggerShoot(); }
       }
     }
-  }
-
-  // Jalankan detektor otomatis tepat setelah inisialisasi awal aplikasi
-  periksaModePengunjungHP();
+  });
 
   if(btnDownload) {
     btnDownload.addEventListener('click', () => {
@@ -594,6 +510,35 @@ function initPhotoboothStudio() {
     });
   }
 
+  function periksaModePengunjungHP() {
+    const hash = window.location.hash;
+    if (hash && (hash.startsWith('#dl') || hash.includes('?f='))) {
+      const appStudio = document.getElementById('photobooth-app');
+      const pageDownloadHP = document.getElementById('visitor-download-page');
+      
+      if (appStudio) appStudio.style.display = 'none';
+      if (pageDownloadHP) pageDownloadHP.style.display = 'flex';
+
+      try {
+        const bagianParameter = hash.includes('?') ? hash.split('?')[1] : '';
+        if (!bagianParameter) return;
+
+        const searchParams = new URLSearchParams(bagianParameter);
+        const idFoto = searchParams.get('f');
+        const idGif = searchParams.get('v');
+
+        const btnDlPhoto = document.getElementById('btn-dl-photo');
+        const btnDlVideo = document.getElementById('btn-dl-video');
+
+        if (idFoto && btnDlPhoto) btnDlPhoto.href = `https://i.imgur.com/${idFoto}.jpg`;
+        if (idGif && btnDlVideo) btnDlVideo.href = `https://i.imgur.com/${idGif}.gif`;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }
+
   loadCameras();
+  periksaModePengunjungHP();
   renderThumbs();
 }
