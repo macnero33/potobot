@@ -426,38 +426,127 @@ function initPhotoboothStudio() {
     });
   }
 
+  // ==========================================================================
+  // LOGIKA CORE UPLOAD SUPABASE CLOUD (ANTI-BLOCK / ANTI-LIMIT)
+  // ==========================================================================
   function uploadKeCloudDanBuatQR(base64GifData) {
     const qrContainer = document.getElementById("qrcode");
     if (!qrContainer) return;
     qrContainer.innerHTML = ""; 
 
     if (qrStatusText) { 
-      qrStatusText.textContent = "⏳ Mengunggah Foto & Boomerang ke Cloud..."; 
+      qrStatusText.textContent = "⏳ Mengamankan Foto & Boomerang ke Supabase Cloud..."; 
       qrStatusText.style.color = "#2563eb"; 
     }
 
-    // Bersihkan header base64 agar siap kirim ke API Cloud
-    const cleanGif = base64GifData.replace(/^data:image\/(png|jpeg|jpg|gif);base64,/, "");
-    const finalFotoStruk = processActiveFilter(); 
-    const cleanFoto = finalFotoStruk.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
+    // 1. KONFIGURASI SUPABASE KAMU (Silakan ganti dengan data proyekmu sendiri)
+    const SUPABASE_URL = "https://xwismjpikwenkqrfeykn.supabase.co"; 
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3aXNtanBpa3dlbmtxcmZleWtuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1OTY5NjYsImV4cCI6MjA5NzE3Mjk2Nn0.aRtM5WdBAZJE0Ma-UcqlkG5hnmqOqpUDiv3UUvi19r8";
+    
+    // Inisialisasi Klien Supabase murni di latar belakang
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // Menggunakan beberapa Client-ID cadangan secara acak untuk menghindari Rate Limit/Blokir IP Pameran
-    const poolId = ["644e5ccb483b8bd", "8c772c914088924", "441432f91963973"];
-    const clientId = poolId[Math.floor(Math.random() * poolId.length)];
-
-    const kirimKeImgur = (base64Data, type) => {
-      const fd = new FormData();
-      fd.append("image", base64Data);
-      fd.append("type", "base64");
-      return fetch("https://api.imgur.com/3/image", {
-        method: "POST",
-        headers: { Authorization: `Client-ID ${clientId}` },
-        body: fd
-      }).then(r => {
-        if (!r.ok) throw new Error("Cloud Refused");
-        return r.json();
-      });
+    // 2. Fungsi Pembantu Konversi Base64 menjadi Blob File agar Diterima Supabase
+    const base64ToBlob = (base64Str, contentType) => {
+      const byteCharacters = atob(base64Str.split(',')[1] || base64Str);
+      const byteArrays = [];
+      for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+        const slice = byteCharacters.slice(offset, offset + 512);
+        const byteNumbers = new Array(slice.length);
+        for (let i = 0; i < slice.length; i++) {
+          byteNumbers[i] = slice.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        byteArrays.push(byteArray);
+      }
+      return new Blob(byteArrays, { type: contentType });
     };
+
+    // 3. Siapkan Data Blob File siap kirim
+    const fileId = `dkv-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
+    const blobFoto = base64ToBlob(processActiveFilter(), "image/jpeg");
+    const blobGif = base64ToBlob(base64GifData, "image/gif");
+
+    // 4. Proses Upload Paralel Menggunakan Jalur Storage Resmi Proyekmu
+    Promise.all([
+      supabase.storage.from('photobooth').upload(`photos/${fileId}.jpg`, blobFoto, { contentType: 'image/jpeg' }),
+      supabase.storage.from('photobooth').upload(`videos/${fileId}.gif`, blobGif, { contentType: 'image/gif' })
+    ])
+    .then(([resFoto, resGif]) => {
+      if (resFoto.error || resGif.error) {
+        throw new Error(resFoto.error?.message || resGif.error?.message);
+      }
+
+      // Ambil ID jalur file yang sukses masuk ke storage
+      const pathFoto = encodeURIComponent(`photos/${fileId}.jpg`);
+      const pathGif = encodeURIComponent(`videos/${fileId}.gif`);
+
+      // Bangun URL QR Code mengarah ke web pameran kamu dengan membawa parameter Supabase
+      const baseAppUrl = window.location.origin + window.location.pathname;
+      const finalUrlWithParams = `${baseAppUrl}#dl?f=${pathFoto}&v=${pathGif}`;
+
+      // Cetak QR Code
+      new QRCode(qrContainer, { 
+        text: finalUrlWithParams, 
+        width: 100, 
+        height: 100, 
+        colorDark : "#000000", 
+        colorLight : "#ffffff", 
+        correctLevel : QRCode.CorrectLevel.M 
+      });
+
+      if (qrStatusText) { 
+        qrStatusText.textContent = "✓ QR Code Cloud Aktif! Scan untuk download file."; 
+        qrStatusText.style.color = "#15803d"; 
+      }
+    })
+    .catch((err) => {
+      console.error("Supabase Error:", err);
+      qrContainer.innerHTML = "<b style='color:#b91c1c;font-size:11px;'>OFFLINE</b>";
+      if (qrStatusText) { 
+        qrStatusText.textContent = "⚠️ Jaringan sibuk. Silakan download manual via laptop."; 
+        qrStatusText.style.color = "#b91c1c"; 
+      }
+    });
+  }
+
+  // ==========================================================================
+  // JALUR BONGKAR DI HP: Ambil File dari Supabase Storage
+  // ==========================================================================
+  function periksaModePengunjungHP() {
+    const hash = window.location.hash;
+    if (hash && (hash.startsWith('#dl') || hash.includes('?f='))) {
+      const appStudio = document.getElementById('photobooth-app');
+      const pageDownloadHP = document.getElementById('visitor-download-page');
+      
+      if (appStudio) appStudio.style.display = 'none';
+      if (pageDownloadHP) pageDownloadHP.style.display = 'flex';
+
+      try {
+        const bagianParameter = hash.includes('?') ? hash.split('?')[1] : '';
+        if (!bagianParameter) return;
+
+        const searchParams = new URLSearchParams(bagianParameter);
+        const pathFoto = searchParams.get('f');
+        const pathGif = searchParams.get('v');
+
+        const btnDlPhoto = document.getElementById('btn-dl-photo');
+        const btnDlVideo = document.getElementById('btn-dl-video');
+
+        // Masukkan URL Supabase milikmu di sini agar HP pengunjung bisa mengunduh langsung
+        const SUPABASE_URL = "https://xwismjpikwenkqrfeykn.supabase.co";
+
+        if (pathFoto && btnDlPhoto) {
+          btnDlPhoto.href = `${SUPABASE_URL}/storage/v1/object/public/photobooth/${pathFoto}`;
+        }
+        if (pathGif && btnDlVideo) {
+          btnDlVideo.href = `${SUPABASE_URL}/storage/v1/object/public/photobooth/${pathGif}`;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }
 
     // Eksekusi berurutan (Sequential), bukan bersamaan (Promise.all) agar koneksi internet tidak tersendat
     kirimKeImgur(cleanFoto, "jpeg")
