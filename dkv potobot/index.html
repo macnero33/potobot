@@ -3,127 +3,133 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Photobooth Studio — DKV Kasir Edition</title>
+  <title>Photobooth DKV Kasir Retro</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gifshot/0.4.5/gifshot.min.js"></script>
 </head>
 <body>
 
-<div id="photobooth-app">
-  <header>
-    <h1>📷 Photobooth Studio — Himpunan DKV</h1>
-    <span id="cam-status">Kamera Siap</span>
-  </header>
-
-  <div class="konten-studio">
-    <div id="left">
-      <div id="cam-wrap">
-        <video id="video" autoplay playsinline muted></video>
-        <div id="cam-overlay"></div>
-        <div id="countdown-display"></div>
-        <div id="flash"></div>
-      </div>
-
-      <div id="controls-bar">
-        <button id="btn-shoot"><span id="shoot-text">Ambil Semua Foto (Spasi)</span></button>
-        
-        <button id="btn-action-retake" style="display: none; background: #dc2626; color: white; border: none;">🔴 Ulangi Foto Ini</button>
-        <button id="btn-action-next" style="display: none; background: #2563eb; color: white; border: none;">🟢 Lanjut Foto Next</button>
-
-        <button id="btn-download">Download JPG</button>
-        <button id="btn-print">Print Struk</button>
-        <button id="btn-reset">Reset Sesi</button>
-      </div>
-
-      <p id="status">Tekan spasi atau klik tombol hitam untuk mulai foto.</p>
-
-      <div id="print-result">
-        <h3>🎉 Hasil Struk Cetak:</h3>
-        
-        <div id="filter-selector-bar">
-          <button id="btn-filter-color" class="filter-btn active-filter">🌈 Original</button>
-          <button id="btn-filter-bw" class="filter-btn">🖤 Retro B&W</button>
-          <button id="btn-filter-dither" class="filter-btn">📟 Kasir Halftone</button>
+  <div id="photobooth-app" class="container">
+    <div class="main-layout">
+      
+      <div class="left-panel">
+        <div class="camera-card">
+          <div class="video-container">
+            <video id="video" autoplay playsinline muted></video>
+            <div id="countdown-display" class="countdown-overlay">3</div>
+            <div id="flash" class="camera-flash"></div>
+          </div>
+          <div class="camera-footer">
+            <span id="cam-status" class="status-badge">Menghubungkan...</span>
+            <div id="status" class="status-text">Bersiap untuk jepretan pertama.</div>
+          </div>
         </div>
 
-        <div class="receipt-preview-box">
-          <img id="print-img" src="" alt="Hasil photobooth receipt">
+        <div class="action-control-area">
+          <button id="btn-shoot" class="btn btn-primary-shoot">
+            <span class="icon">📸</span>
+            <span id="shoot-text">Ambil Foto #1 (Spasi)</span>
+          </button>
+          
+          <button id="btn-action-retake" class="btn btn-danger" style="display: none; background: #dc2626 !important; color: white !important;">
+            🔄 ULANGI FOTO INI
+          </button>
+          <button id="btn-action-next" class="btn btn-success" style="display: none; background: #2563eb !important; color: white !important;">
+            ➡️ LANJUT FOTO NEXT
+          </button>
         </div>
-        
-        <div id="qr-wrap">
-          <div class="qr-card">
-            <div id="qrcode"></div>
-            <div class="qr-text-side">
-              <h4>Scan untuk Download</h4>
-              <p id="qr-status-text">Memproses tautan gambar QR...</p>
+
+        <div id="strip-preview" class="strip-thumbnail-bar"></div>
+      </div>
+
+      <div class="right-panel">
+        <div class="control-card">
+          <h3>🎛️ PANEL KONTROL</h3>
+          
+          <div class="input-group">
+            <label>Pilih Kamera Web</label>
+            <select id="cam-select" class="form-control"></select>
+          </div>
+
+          <div class="input-group">
+            <label>Layout Struk</label>
+            <select id="layout-select" class="form-control">
+              <option value="strip3">3 Foto Vertikal (Strip)</option>
+              <option value="grid4">4 Foto Kotak (Grid)</option>
+              <option value="single">1 Foto Tunggal (Large)</option>
+            </select>
+          </div>
+
+          <div class="input-group">
+            <label>Template Struk / Header</label>
+            <select id="frame-select" class="form-control">
+              <option value="standard">Struk Belanja Standar</option>
+              <option value="calendar-2026">Struk Kalender Juni 2026</option>
+            </select>
+          </div>
+
+          <div class="input-group">
+            <label>Timer Hitung Mundur</label>
+            <select id="timer-select" class="form-control">
+              <option value="3">3 Detik</option>
+              <option value="5">5 Detik</option>
+              <option value="0">Instan (Tanpa Delay)</option>
+            </select>
+          </div>
+
+          <div class="filter-section">
+            <label>Gaya Cetak Gambar</label>
+            <div class="filter-buttons">
+              <button id="btn-filter-dither" class="btn-filter active-filter">Halftone Dither</button>
+              <button id="btn-filter-bw" class="btn-filter">Retro B&W</button>
+              <button id="btn-filter-color" class="btn-filter">Warna Asli</button>
             </div>
           </div>
         </div>
-      </div>
-    </div>
 
-    <div id="right">
-      <div class="ctrl-section">
-        <span class="ctrl-label">Pilih Kamera</span>
-        <select id="cam-select"><option value="">Mendeteksi...</option></select>
+        <div id="print-result" class="print-preview-card" style="display: none;">
+          <h3>📄 PREVIEW STRUK KASIR</h3>
+          <div class="receipt-paper">
+            <img id="print-img" src="" alt="Hasil Struk">
+          </div>
+          
+          <div class="qr-container-box">
+            <div id="qrcode"></div>
+            <p id="qr-status-text">⏳ Memproses QR...</p>
+          </div>
+
+          <div class="print-actions">
+            <button id="btn-print" class="btn btn-print-trigger">🖨️ CETAK STRUK STRIP</button>
+            <button id="btn-download" class="btn btn-download-trigger">💾 DOWNLOAD JPG</button>
+          </div>
+          <button id="btn-reset" class="btn btn-reset-trigger">🔄 MULAI SESI BARU</button>
+        </div>
       </div>
-      
-      <div class="ctrl-section">
-        <span class="ctrl-label">Layout Struk</span>
-        <select id="layout-select">
-          <option value="strip3">Strip 3 foto (Memanjang/Vertikal)</option>
-          <option value="grid4">Grid 2×2 (4 foto)</option>
-          <option value="single">Single foto</option>
-        </select>
-      </div>
-      
-      <div class="ctrl-section">
-        <span class="ctrl-label">Template / Tema Struk</span>
-        <select id="frame-select">
-          <option value="builtin-light">Struk Kasir Standar (Hitam-Putih)</option>
-          <option value="calendar-2026">📅 Edisi Khusus: Kalender Juni 2026</option>
-        </select>
-      </div>
-      
-      <div class="ctrl-section">
-        <span class="ctrl-label">Countdown Timer</span>
-        <select id="timer-select">
-          <option value="3">3 detik</option>
-          <option value="5">5 detik</option>
-          <option value="0">Tanpa timer</option>
-        </select>
-      </div>
-      
-      <div class="ctrl-section">
-        <span class="ctrl-label">Pratinjau Slot Foto</span>
-        <div id="strip-preview"></div>
-      </div>
+
     </div>
   </div>
 
-  <canvas id="result-canvas" style="display: none;"></canvas>
-  <canvas id="shot-canvas" style="display: none;"></canvas>
-  <canvas id="filter-canvas" style="display: none;"></canvas>
-  <iframe id="print-iframe" style="display: none;"></iframe>
-</div>
-
+  <div style="display: none;">
+    <canvas id="shot-canvas"></canvas>
+    <canvas id="result-canvas"></canvas>
+    <canvas id="filter-canvas"></canvas>
+    <iframe id="print-iframe"></iframe>
+  </div>
 
   <div id="visitor-download-page" style="display: none; position: fixed; inset: 0; background: #f3f4f6; z-index: 99999; font-family: sans-serif; padding: 20px; box-sizing: border-box; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
-  <div style="background: white; padding: 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); max-width: 360px; width: 100%;">
-    <h2 style="margin: 0 0 8px 0; font-size: 20px; font-weight: 800; color: #111827;">🎉 Unduh Hasil Foto Kamu</h2>
-    <p style="margin: 0 0 20px 0; font-size: 13px; color: #4b5563;">Silakan simpan file photobooth DKV langsung ke galeri HP.</p>
-    
-    <a id="btn-dl-photo" href="#" target="_blank" style="display: block; width: 100%; padding: 14px 0; background: #111827; color: white; text-decoration: none; font-weight: 700; border-radius: 8px; margin-bottom: 12px; font-size: 14px;">📷 DOWNLOAD FOTO STRUK</a>
-    
-    <a id="btn-dl-video" href="#" target="_blank" style="display: block; width: 100%; padding: 14px 0; background: #2563eb; color: white; text-decoration: none; font-weight: 700; border-radius: 8px; margin-bottom: 20px; font-size: 14px;">🎬 DOWNLOAD VIDEO BOOMERANG</a>
-    
-    <p style="margin: 0; font-size: 11px; color: #9ca3af; line-height: 1.4;">*Tips: Jika tombol download bermasalah di beberapa browser iOS, klik tombol untuk membuka gambar penuh, lalu tekan lama untuk memilih <b>"Simpan ke Foto"</b>.</p>
+    <div style="background: white; padding: 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); max-width: 360px; width: 100%;">
+      <h2 style="margin: 0 0 8px 0; font-size: 20px; font-weight: 800; color: #111827;">🎉 Unduh Hasil Foto Kamu</h2>
+      <p style="margin: 0 0 20px 0; font-size: 13px; color: #4b5563;">Silakan simpan file photobooth DKV langsung ke galeri HP.</p>
+      
+      <a id="btn-dl-photo" href="#" target="_blank" style="display: block; width: 100%; padding: 14px 0; background: #111827; color: white; text-decoration: none; font-weight: 700; border-radius: 8px; margin-bottom: 12px; font-size: 14px;">📷 DOWNLOAD FOTO STRUK</a>
+      
+      <a id="btn-dl-video" href="#" target="_blank" style="display: block; width: 100%; padding: 14px 0; background: #2563eb; color: white; text-decoration: none; font-weight: 700; border-radius: 8px; margin-bottom: 20px; font-size: 14px;">🎬 DOWNLOAD VIDEO BOOMERANG</a>
+      
+      <p style="margin: 0; font-size: 11px; color: #9ca3af; line-height: 1.4;">*Tips: Jika tombol download bermasalah di browser Safari/iOS, klik tombol untuk membuka gambar penuh, lalu tekan lama layarnya untuk memilih <b>"Simpan ke Foto"</b>.</p>
+    </div>
   </div>
-</div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gifshot/0.4.5/gifshot.min.js"></script>
-<script src="script.js"></script>
-  
-<script src="script.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
