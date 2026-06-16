@@ -456,6 +456,9 @@ function initPhotoboothStudio() {
   // ==========================================================================
   // LOGIKA CORE UPLOAD SUPABASE CLOUD (ANTI-BLOCK / ANTI-LIMIT)
   // ==========================================================================
+// ==========================================================================
+  // LOGIKA CORE UPLOAD SUPABASE CLOUD (PERBAIKAN VARIABEL BENTROK - AMAN 100%)
+  // ==========================================================================
   function uploadKeCloudDanBuatQR(base64GifData) {
     const qrContainer = document.getElementById("qrcode");
     if (!qrContainer) return;
@@ -466,14 +469,14 @@ function initPhotoboothStudio() {
       qrStatusText.style.color = "#2563eb"; 
     }
 
-    // 1. KONFIGURASI SUPABASE KAMU (Silakan ganti dengan data proyekmu sendiri)
+    // 1. KONFIGURASI SUPABASE (Silakan ganti dengan data proyekmu sendiri)
     const SUPABASE_URL = "https://xwismjpikwenkqrfeykn.supabase.co"; 
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3aXNtanBpa3dlbmtxcmZleWtuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1OTY5NjYsImV4cCI6MjA5NzE3Mjk2Nn0.aRtM5WdBAZJE0Ma-UcqlkG5hnmqOqpUDiv3UUvi19r8";
     
-    // Inisialisasi Klien Supabase murni di latar belakang
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    // Perbaikan: Menggunakan nama variabel 'supabaseClient' agar tidak bentrok dengan library CDN
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // 2. Fungsi Pembantu Konversi Base64 menjadi Blob File agar Diterima Supabase
+    // 2. Fungsi Pembantu Konversi Base64 menjadi Blob File
     const base64ToBlob = (base64Str, contentType) => {
       const byteCharacters = atob(base64Str.split(',')[1] || base64Str);
       const byteArrays = [];
@@ -494,10 +497,10 @@ function initPhotoboothStudio() {
     const blobFoto = base64ToBlob(processActiveFilter(), "image/jpeg");
     const blobGif = base64ToBlob(base64GifData, "image/gif");
 
-    // 4. Proses Upload Paralel Menggunakan Jalur Storage Resmi Proyekmu
+    // 4. Proses Upload Paralel ke Storage Supabase
     Promise.all([
-      supabase.storage.from('photobooth').upload(`photos/${fileId}.jpg`, blobFoto, { contentType: 'image/jpeg' }),
-      supabase.storage.from('photobooth').upload(`videos/${fileId}.gif`, blobGif, { contentType: 'image/gif' })
+      supabaseClient.storage.from('photobooth').upload(`photos/${fileId}.jpg`, blobFoto, { contentType: 'image/jpeg' }),
+      supabaseClient.storage.from('photobooth').upload(`videos/${fileId}.gif`, blobGif, { contentType: 'image/gif' })
     ])
     .then(([resFoto, resGif]) => {
       if (resFoto.error || resGif.error) {
@@ -560,7 +563,7 @@ function initPhotoboothStudio() {
         const btnDlPhoto = document.getElementById('btn-dl-photo');
         const btnDlVideo = document.getElementById('btn-dl-video');
 
-        // Masukkan URL Supabase milikmu di sini agar HP pengunjung bisa mengunduh langsung
+        // PENTING: Masukkan URL Supabase milikmu di sini agar HP pengunjung bisa mengunduh langsung
         const SUPABASE_URL = "https://xwismjpikwenkqrfeykn.supabase.co";
 
         if (pathFoto && btnDlPhoto) {
