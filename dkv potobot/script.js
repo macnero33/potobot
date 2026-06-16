@@ -9,7 +9,7 @@ function initPhotoboothStudio() {
   const btnShoot = document.getElementById('btn-shoot');
   const shootText = document.getElementById('shoot-text');
   const btnDownload = document.getElementById('btn-download');
-  const btnPrint = document.getElementById('btn-print');
+  const btnPrint = document.getElementById('btnPrint') || document.getElementById('btn-print');
   const btnReset = document.getElementById('btn-reset');
   const layoutSel = document.getElementById('layout-select');
   const frameSel = document.getElementById('frame-select');
@@ -216,19 +216,18 @@ function initPhotoboothStudio() {
     if (vw / vh > targetAspect) { sWidth = vh * targetAspect; sx = (vw - sWidth) / 2; } 
     else { sHeight = vw / targetAspect; sy = (vh - sHeight) / 2; }
 
-    c.width = 400; c.height = 300; // Ukuran optimal frame agar konversi cepat
+    c.width = 400; c.height = 300; 
     const ctx = c.getContext('2d');
     ctx.save(); ctx.translate(400, 0); ctx.scale(-1, 1);
     ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, 400, 300); ctx.restore();
     return c.toDataURL('image/jpeg', 0.8);
   }
 
-  // AMBIL BURST LANGSUNG DARI MEMORI CANVAS ELEMEN TANPA RE-INIT WEBCAM
   async function captureBurstFrames() {
     const currentSlotFrames = [];
     for (let i = 0; i < 5; i++) {
       currentSlotFrames.push(captureFrame());
-      await new Promise(r => setTimeout(r, 100));
+      await new Promise(r => setTimeout(r, 120));
     }
     const reversed = [...currentSlotFrames].reverse().slice(1, -1);
     gifShots[currentActiveSlot] = currentSlotFrames.concat(reversed);
@@ -261,11 +260,9 @@ function initPhotoboothStudio() {
       setTimeout(() => flash.style.opacity = '0', 120);
     }
     
-    // Simpan data master diam
     shots[currentActiveSlot] = captureFrame(); 
     renderThumbs();
 
-    // Rekam frame sisa untuk loop gerak
     await captureBurstFrames();
 
     shooting = false;
@@ -274,7 +271,7 @@ function initPhotoboothStudio() {
     if(btnRetake) btnRetake.style.display = "inline-flex";
     if(btnNext) btnNext.style.display = "inline-flex";
     
-    statusEl.innerHTML = `Foto #${currentActiveSlot + 1} aman! <br>Pilih opsi di bawah untuk lanjut.`;
+    statusEl.innerHTML = `Foto #${currentActiveSlot + 1} tertangkap!`;
   }
 
   function handleNextAction() {
@@ -406,17 +403,23 @@ function initPhotoboothStudio() {
 
     if(!allFlattenedFrames.length) return;
 
+    // Pastikan library gifshot terpanggil aman tanpa crash
+    if (typeof gifshot === 'undefined') {
+      if (qrStatusText) qrStatusText.textContent = "⚠️ Library Gifshot belum masuk. Menggunakan backup gambar.";
+      uploadKeCloudDanBuatQR(processActiveFilter());
+      return;
+    }
+
     gifshot.createGIF({
       images: allFlattenedFrames,
       gifWidth: 400,
       gifHeight: 300,
-      interval: 0.1, 
+      interval: 0.12, 
       numWorkers: 2
     }, function (obj) {
       if (!obj.error) {
         uploadKeCloudDanBuatQR(obj.image);
       } else {
-        if (qrStatusText) qrStatusText.textContent = "⚠️ Gagal membuat Boomerang. Menggunakan backup gambar.";
         uploadKeCloudDanBuatQR(processActiveFilter());
       }
     });
@@ -513,12 +516,7 @@ function initPhotoboothStudio() {
   function periksaModePengunjungHP() {
     const hash = window.location.hash;
     if (hash && (hash.startsWith('#dl') || hash.includes('?f='))) {
-      const appStudio = document.getElementById('photobooth-app');
-      const pageDownloadHP = document.getElementById('visitor-download-page');
-      
-      if (appStudio) appStudio.style.display = 'none';
-      if (pageDownloadHP) pageDownloadHP.style.display = 'flex';
-
+      // Pembongkaran live murni berbasis memori URL tanpa merusak layout
       try {
         const bagianParameter = hash.includes('?') ? hash.split('?')[1] : '';
         if (!bagianParameter) return;
@@ -527,11 +525,10 @@ function initPhotoboothStudio() {
         const idFoto = searchParams.get('f');
         const idGif = searchParams.get('v');
 
-        const btnDlPhoto = document.getElementById('btn-dl-photo');
-        const btnDlVideo = document.getElementById('btn-dl-video');
-
-        if (idFoto && btnDlPhoto) btnDlPhoto.href = `https://i.imgur.com/${idFoto}.jpg`;
-        if (idGif && btnDlVideo) btnDlVideo.href = `https://i.imgur.com/${idGif}.gif`;
+        // Buka link tab baru download otomatis tanpa menghancurkan tampilan laptop panitia
+        if (idFoto && idGif) {
+          window.location.href = `https://i.imgur.com/${idGif}.gif`; 
+        }
       } catch (e) {
         console.error(e);
       }
