@@ -22,9 +22,9 @@ function initPhotoboothStudio() {
   const printIframe = document.getElementById('print-iframe');
   const qrStatusText = document.getElementById('qr-status-text');
 
-  const btnFilterColor = document.getElementById('btn-filter-color');
-  const btnFilterBW = document.getElementById('btn-filter-bw');
-  const btnFilterDither = document.getElementById('btn-filter-dither');
+  // Deklarasi 2 Tombol Interaktif Baru
+  const btnRetake = document.getElementById('btn-action-retake');
+  const btnNext = document.getElementById('btn-action-next');
 
   let shots = [];
   let shooting = false;
@@ -32,7 +32,6 @@ function initPhotoboothStudio() {
   let rawStrukCanvas = null; 
   let currentFilter = 'dither'; 
   
-  // Variabel baru untuk melacak antrean foto interaktif
   let currentActiveSlot = 0; 
   let isWaitingConfirmation = false; 
 
@@ -99,6 +98,10 @@ function initPhotoboothStudio() {
 
   function setFilterUI(type) {
     currentFilter = type;
+    const btnFilterColor = document.getElementById('btn-filter-color');
+    const btnFilterBW = document.getElementById('btn-filter-bw');
+    const btnFilterDither = document.getElementById('btn-filter-dither');
+    
     if(btnFilterColor) btnFilterColor.classList.remove('active-filter');
     if(btnFilterBW) btnFilterBW.classList.remove('active-filter');
     if(btnFilterDither) btnFilterDither.classList.remove('active-filter');
@@ -110,6 +113,9 @@ function initPhotoboothStudio() {
     processActiveFilter();
   }
 
+  const btnFilterColor = document.getElementById('btn-filter-color');
+  const btnFilterBW = document.getElementById('btn-filter-bw');
+  const btnFilterDither = document.getElementById('btn-filter-dither');
   if(btnFilterColor) btnFilterColor.addEventListener('click', () => setFilterUI('color'));
   if(btnFilterBW) btnFilterBW.addEventListener('click', () => setFilterUI('bw'));
   if(btnFilterDither) btnFilterDither.addEventListener('click', () => setFilterUI('dither'));
@@ -145,7 +151,15 @@ function initPhotoboothStudio() {
     shots = [];
     currentActiveSlot = 0;
     isWaitingConfirmation = false;
+    
+    // Kembalikan visibilitas tombol utama
+    btnShoot.style.display = "inline-flex";
+    btnShoot.disabled = false;
     shootText.textContent = "Ambil Foto #1 (Spasi)";
+    
+    if(btnRetake) btnRetake.style.display = "none";
+    if(btnNext) btnNext.style.display = "none";
+    
     statusEl.textContent = "Sesi kosong. Bersiap untuk jepretan pertama.";
     btnDownload.style.display = 'none'; btnPrint.style.display = 'none'; btnReset.style.display = 'none';
     printResult.style.display = 'none'; 
@@ -162,7 +176,6 @@ function initPhotoboothStudio() {
     for (let i = 0; i < layout.count; i++) {
       const container = document.createElement('div'); container.className = 'thumb-container';
       
-      // Beri tanda highlight warna biru pada slot yang sedang aktif difoto
       if (i === currentActiveSlot && !isWaitingConfirmation) {
         container.style.borderColor = "#0076ff";
         container.style.boxShadow = "0 0 0 3px rgba(0, 118, 255, 0.2)";
@@ -182,7 +195,6 @@ function initPhotoboothStudio() {
     const c = document.getElementById('shot-canvas');
     const vw = video.videoWidth || 1280; const vh = video.videoHeight || 960;
     
-    // Algoritma Center-Crop Anti-Gepeng Otomatis untuk iOS & Laptop
     const targetAspect = 4 / 3;
     let sWidth = vw; let sHeight = vh; let sx = 0; let sy = 0;
     if (vw / vh > targetAspect) { sWidth = vh * targetAspect; sx = (vw - sWidth) / 2; } 
@@ -195,32 +207,9 @@ function initPhotoboothStudio() {
     return c.toDataURL('image/jpeg', 0.9);
   }
 
-  // ALALUR INTERAKTIF BARU: MEMOTRET SATU PER SATU DENGAN SINKRONISASI KONFIRMASI
+  // SINKRONISASI PEMOTRETAN PER ELEMEN SLOT FOTO
   async function handleShootAction() {
-    const layout = getLayout();
-    
-    // FASE A: JIKA SEDANG MENUNGGU KONFIRMASI RETAKE ATAU LANJUT
-    if (isWaitingConfirmation) {
-      // Kita buat konversi klik berurutan: Jika diklik lagi, artinya dia setuju LANJUT
-      isWaitingConfirmation = false;
-      currentActiveSlot++;
-      
-      if (currentActiveSlot < layout.count) {
-        shootText.textContent = `Ambil Foto #${currentActiveSlot + 1} (Spasi)`;
-        statusEl.textContent = `Bersiap untuk jepretan foto #${currentActiveSlot + 1}.`;
-        renderThumbs();
-      } else {
-        // Jika semua slot sudah selesai dikonfirmasi lanjut, eksekusi kompilasi struk
-        statusEl.textContent = "Semua jepretan aman! Menyusun struk belanja kasir...";
-        shootText.textContent = "Selesai!";
-        btnShoot.disabled = true;
-        buildMasterStruk();
-      }
-      return;
-    }
-
-    // FASE B: PROSES JEP RET FOTO AKTIF
-    if (shooting) return;
+    if (shooting || isWaitingConfirmation) return;
     shooting = true;
     btnShoot.disabled = true;
     
@@ -239,17 +228,68 @@ function initPhotoboothStudio() {
     
     flash.style.opacity = '0.9'; setTimeout(() => flash.style.opacity = '0', 120);
     
-    // Simpan hasil jepretan ke slot index aktif saat ini
     shots[currentActiveSlot] = captureFrame(); 
     renderThumbs();
     shooting = false;
+    
+    // SELESAI POTRET: Sembunyikan tombol utama, munculkan opsi Ulangi / Lanjut
+    isWaitingConfirmation = true;
+    btnShoot.style.display = "none";
+    if(btnRetake) btnRetake.style.display = "inline-flex";
+    if(btnNext) btnNext.style.display = "inline-flex";
+    
+    statusEl.innerHTML = `Foto #${currentActiveSlot + 1} tertangkap! <br>Pilih tombol di bawah untuk menentukan aksi.`;
+  }
+
+  // AKSI JIKA KLIK LANJUT
+  function handleNextAction() {
+    if (!isWaitingConfirmation) return;
+    const layout = getLayout();
+    isWaitingConfirmation = false;
+    
+    // Sembunyikan tombol retake/next, aktifkan kembali tombol utama
+    if(btnRetake) btnRetake.style.display = "none";
+    if(btnNext) btnNext.style.display = "none";
+    btnShoot.style.display = "inline-flex";
+    
+    currentActiveSlot++;
+    
+    if (currentActiveSlot < layout.count) {
+      btnShoot.disabled = false;
+      shootText.textContent = `Ambil Foto #${currentActiveSlot + 1} (Spasi)`;
+      statusEl.textContent = `Bersiap untuk foto #${currentActiveSlot + 1}.`;
+      renderThumbs();
+    } else {
+      btnShoot.disabled = true;
+      shootText.textContent = "Selesai!";
+      statusEl.textContent = "Semua jepretan aman! Menyusun struk belanja kasir...";
+      buildMasterStruk();
+    }
+  }
+
+  // AKSI JIKA KLIK RETAKE / ULANGI FOTO AKTIF
+  function handleRetakeAction() {
+    if (!isWaitingConfirmation) return;
+    isWaitingConfirmation = false;
+    
+    // Sembunyikan tombol retake/next, aktifkan kembali tombol utama
+    if(btnRetake) btnRetake.style.display = "none";
+    if(btnNext) btnNext.style.display = "none";
+    btnShoot.style.display = "inline-flex";
     btnShoot.disabled = false;
     
-    // MASUK KE MODE KONFIRMASI PER FOTO
-    isWaitingConfirmation = true;
-    shootText.innerHTML = `🟢 LANJUTKAN atau 🔴 RETAKE (#${currentActiveSlot + 1})`;
-    statusEl.innerHTML = `Foto #${currentActiveSlot + 1} selesai! <br><b>Tekan Spasi/Klik Tombol</b> untuk LANJUT, atau <b>Klik Kotak Slot Preview di Kanan</b> untuk FOTO ULANG jepretan ini.`;
+    shootText.textContent = `Foto Ulang #${currentActiveSlot + 1} (Spasi)`;
+    statusEl.textContent = `Silakan ambil ulang jepretan untuk slot #${currentActiveSlot + 1}.`;
+    renderThumbs();
   }
+
+  // Pasang Listener Klik Fisik Tombol Konfirmasi Baru
+  if(btnNext) btnNext.addEventListener('click', (e) => { e.preventDefault(); handleNextAction(); });
+  if(btnRetake) btnRetake.addEventListener('click', (e) => { e.preventDefault(); handleRetakeAction(); });
+  
+  if(btnNext) btnNext.addEventListener('touchstart', (e) => { e.preventDefault(); handleNextAction(); }, { passive: false });
+  if(btnRetake) btnRetake.addEventListener('touchstart', (e) => { e.preventDefault(); handleRetakeAction(); }, { passive: false });
+
 
   // 5. ENGINE INTEGRASI STRUK KASIR
   function buildMasterStruk() {
@@ -319,6 +359,7 @@ function initPhotoboothStudio() {
 
     printResult.style.display = 'block';
     btnDownload.style.display = 'inline-flex'; btnPrint.style.display = 'inline-flex'; btnReset.style.display = 'inline-flex';
+    btnShoot.style.display = "inline-flex";
     btnShoot.disabled = false;
     shootText.textContent = "Sesi Selesai ✓";
     statusEl.textContent = "Struk dimuat! Set filter kasir Anda di bawah.";
@@ -381,9 +422,9 @@ function initPhotoboothStudio() {
     });
   }
 
-  // 7. OPERASIONAL TOMBOL & INTERACTIVE TRIGGER
+  // 7. OPERASIONAL TOMBOL UTAMA
   function triggerShoot() {
-    if (!shooting && !btnShoot.disabled) {
+    if (!shooting && !btnShoot.disabled && !isWaitingConfirmation) {
       handleShootAction();
     }
   }
@@ -394,7 +435,12 @@ function initPhotoboothStudio() {
   document.body.addEventListener('keydown', (e) => {
     if (e.code === 'Space') {
       if (document.activeElement.tagName !== 'SELECT') {
-        e.preventDefault(); triggerShoot();
+        e.preventDefault();
+        if (isWaitingConfirmation) {
+          handleNextAction(); // Di laptop, tekan spasi saat mode konfirmasi otomatis memilih LANJUT
+        } else {
+          triggerShoot();
+        }
       }
     }
   });
