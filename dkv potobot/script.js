@@ -165,13 +165,42 @@ function initPhotoboothStudio() {
     }
   }
 
-  function captureFrame() {
+function captureFrame() {
     const c = document.getElementById('shot-canvas');
-    const vw = video.videoWidth || 1280; const vh = video.videoHeight || 960;
-    c.width = vw; c.height = vh;
+    const vw = video.videoWidth || 1280; 
+    const vh = video.videoHeight || 960;
+    
+    // Hitung dimensi target 4:3 agar pas dengan template struk kasir
+    const targetAspect = 4 / 3;
+    let sWidth = vw;
+    let sHeight = vh;
+    let sx = 0;
+    let sy = 0;
+
+    // ALGORITMA CROPPING AUTOMATIS: Memotong paksa sensor panjang iOS agar jadi 4:3 proporsional
+    if (vw / vh > targetAspect) {
+      // Jika kamera terlalu lebar (seperti iPhone horizontal)
+      sWidth = vh * targetAspect;
+      sx = (vw - sWidth) / 2;
+    } else {
+      // Jika kamera terlalu tinggi (seperti iPad / Portrait)
+      sHeight = vw / targetAspect;
+      sy = (vh - sHeight) / 2;
+    }
+
+    // Set resolusi output canvas internal
+    c.width = 640; 
+    c.height = 480; 
+    
     const ctx = c.getContext('2d');
-    ctx.save(); ctx.translate(vw, 0); ctx.scale(-1, 1);
-    ctx.drawImage(video, 0, 0, vw, vh); ctx.restore();
+    
+    // Mirroring & Drawing dengan metode drawImage 9-parameter agar dipotong di tengah (Anti-Gepeng)
+    ctx.save(); 
+    ctx.translate(640, 0); 
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, 640, 480); 
+    ctx.restore();
+    
     return c.toDataURL('image/jpeg', 0.9);
   }
 
