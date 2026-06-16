@@ -29,8 +29,8 @@ function initPhotoboothStudio() {
   let shots = [];
   let shooting = false;
   let stream = null;
-  let rawStrukCanvas = null; // Master canvas berwarna asli
-  let currentFilter = 'dither'; // Bawaan otomatis ke dither halftone kasir
+  let rawStrukCanvas = null; 
+  let currentFilter = 'dither'; 
 
   const CAM_ASPECT = 4 / 3; 
   const BASE_WIDTH = 420;   
@@ -44,7 +44,7 @@ function initPhotoboothStudio() {
 
   function getLayout() { return LAYOUTS[layoutSel.value]; }
 
-  // 1. ENGINE ALGORITMA FILTER HALFTONE (DITHERING KASIR)
+  // 1. ENGINE FILTER HALFTONE (DITHERING KASIR)
   function applyDitherFilter(ctx, width, height) {
     const imgData = ctx.getImageData(0, 0, width, height);
     const d = imgData.data;
@@ -59,7 +59,7 @@ function initPhotoboothStudio() {
     ctx.putImageData(imgData, 0, 0);
   }
 
-  // 2. ENGINE ALGORITMA FILTER RETRO HIGH-CONTRAST B&W
+  // 2. ENGINE FILTER RETRO HIGH-CONTRAST B&W
   function applyGrayscaleFilter(ctx, width, height) {
     const imgData = ctx.getImageData(0, 0, width, height);
     const d = imgData.data;
@@ -73,7 +73,7 @@ function initPhotoboothStudio() {
     ctx.putImageData(imgData, 0, 0);
   }
 
-  // 3. CORE PEMROSESAN FILTER LIVE VIEW & EXPORT
+  // 3. PEMROSESAN FILTER
   function processActiveFilter() {
     if (!rawStrukCanvas) return null;
     const finalCanvas = document.getElementById('filter-canvas');
@@ -120,7 +120,7 @@ function initPhotoboothStudio() {
       };
       stream = await navigator.mediaDevices.getUserMedia(constraints);
       video.srcObject = stream;
-    } catch (e) { console.log('Kamera kendala/izin ditolak'); }
+    } catch (e) { console.log('Kamera error'); }
   }
 
   async function loadCameras() {
@@ -187,7 +187,7 @@ function initPhotoboothStudio() {
         countdownEl.style.opacity = '1';
         for (let t = timerDelay; t > 0; t--) {
           countdownEl.textContent = t;
-          statusEl.textContent = `Awas! Foto ke-${i + 1} dalam ${t}...`;
+          statusEl.textContent = `Foto ke-${i + 1} bersiap dalam ${t}...`;
           await new Promise(r => setTimeout(r, 1000));
         }
         countdownEl.style.opacity = '0';
@@ -202,7 +202,7 @@ function initPhotoboothStudio() {
     buildMasterStruk();
   }
 
-  // 5. ENGINE INTEGRASI STRUK KASIR (MASTER RENDER)
+  // 5. ENGINE INTEGRASI STRUK KASIR
   function buildMasterStruk() {
     const layout = getLayout();
     const isCalendar = (frameSel.value === 'calendar-2026');
@@ -272,12 +272,11 @@ function initPhotoboothStudio() {
     btnDownload.style.display = 'inline-flex'; btnPrint.style.display = 'inline-flex'; btnReset.style.display = 'inline-flex';
     statusEl.textContent = "Struk dimuat!";
 
-    // Eksekusi filter default (Dither) & jalankan upload cloud di background
     const finalRenderedData = processActiveFilter();
     uploadKeCloudDanBuatQR(finalRenderedData);
   }
 
-  // 6. JALUR INTERNET CLOUD GENERATOR (PERBAIKAN TOTAL ANTI-GAGAL)
+  // 6. JALUR ONLINE QR CODE DETECTOR
   function uploadKeCloudDanBuatQR(base64Image) {
     const qrContainer = document.getElementById("qrcode");
     if (!qrContainer) return;
@@ -288,35 +287,23 @@ function initPhotoboothStudio() {
       qrStatusText.style.color = "#854d0e";
     }
 
-    // Mengamankan pemotongan string base64 data url
-    let cleanBase64 = "";
-    if (base64Image.includes(",")) {
-      cleanBase64 = base64Image.split(",")[1];
-    } else {
-      cleanBase64 = base64Image;
-    }
-    
-    // Kirim data menggunakan format x-www-form-urlencoded (Paling stabil untuk Imgur API)
-    const bodyData = new URLSearchParams();
-    bodyData.append("image", cleanBase64);
-    bodyData.append("type", "base64");
+    const cleanBase64 = base64Image.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
+    const clientId = "644e5ccb483b8bd"; 
+
+    const formData = new FormData();
+    formData.append("image", cleanBase64);
+    formData.append("type", "base64");
 
     fetch("https://api.imgur.com/3/image", {
       method: "POST",
-      headers: { 
-        "Authorization": "Client-ID 644e5ccb483b8bd"
-      },
-      body: bodyData
+      headers: { Authorization: `Client-ID ${clientId}` },
+      body: formData
     })
-    .then(res => {
-      if (!res.ok) throw new Error("Server menolak request");
-      return res.json();
-    })
+    .then(res => res.json())
     .then(response => {
       if (response.success && response.data.link) {
         const shortUrl = response.data.link; 
         
-        // Render QR Code dari link pendek cloud yang super stabil
         new QRCode(qrContainer, {
           text: shortUrl,
           width: 100,
@@ -327,24 +314,51 @@ function initPhotoboothStudio() {
         });
 
         if (qrStatusText) {
-          qrStatusText.textContent = "✓ QR Code Berhasil Muncul! Silakan scan menggunakan HP pengunjung.";
+          qrStatusText.textContent = "✓ QR Code Aktif! Silakan scan untuk unduh gambar struk ke smartphone Anda.";
           qrStatusText.style.color = "#15803d";
         }
       } else {
         throw new Error();
       }
     })
-    .catch((err) => {
-      console.error(err);
-      qrContainer.innerHTML = "<b style='color:#b91c1c;font-size:11px;'>GAGAL</b>";
+    .catch(() => {
+      qrContainer.innerHTML = "<b style='color:#b91c1c;font-size:11px;'>OFFLINE</b>";
       if (qrStatusText) {
-        qrStatusText.textContent = "⚠️ Pastikan laptop terhubung internet/tethering aktif agar QR bisa muncul.";
+        qrStatusText.textContent = "⚠️ Internet terputus. Gunakan tombol 'Download JPG' di laptop.";
         qrStatusText.style.color = "#b91c1c";
       }
     });
   }
 
-  // 7. OPERASIONAL TOMBOL UTAMA
+  // 7. OPERASIONAL TOMBOL & GEAR GERAK (FLEXIBEL MOBILITY TOUCH)
+  function triggerShoot() {
+    if (!shooting && !btnShoot.disabled) {
+      handleShootAction();
+    }
+  }
+
+  // Klik Mouse Laptop/PC
+  btnShoot.addEventListener('click', (e) => {
+    e.preventDefault();
+    triggerShoot();
+  });
+
+  // Layar Sentuh Jari iPhone/iPad (Anti-Delay iOS)
+  btnShoot.addEventListener('touchstart', (e) => {
+    e.preventDefault(); 
+    triggerShoot();
+  }, { passive: false });
+
+  // Hotkey Tombol Spasi Keyboard Fisik Laptop
+  document.body.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') {
+      if (document.activeElement.tagName !== 'SELECT') {
+        e.preventDefault(); 
+        triggerShoot();
+      }
+    }
+  });
+
   btnDownload.addEventListener('click', () => {
     const finalImageURL = processActiveFilter();
     if (!finalImageURL) return;
@@ -380,13 +394,6 @@ function initPhotoboothStudio() {
       </html>
     `);
     doc.close();
-  });
-
-  // HOTKEY SPASI
-  document.body.addEventListener('keydown', (e) => {
-    if (e.code === 'Space' && !shooting && !btnShoot.disabled) {
-      e.preventDefault(); handleShootAction();
-    }
   });
 
   loadCameras();
