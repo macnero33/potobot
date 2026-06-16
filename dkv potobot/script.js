@@ -15,6 +15,7 @@ function initPhotoboothStudio() {
   const frameSel = document.getElementById('frame-select');
   const timerSel = document.getElementById('timer-select');
   const camSel = document.getElementById('cam-select');
+  const camStatus = document.getElementById('cam-status');
   const stripPreview = document.getElementById('strip-preview');
   const flash = document.getElementById('flash');
   const printResult = document.getElementById('print-result');
@@ -22,7 +23,6 @@ function initPhotoboothStudio() {
   const printIframe = document.getElementById('print-iframe');
   const qrStatusText = document.getElementById('qr-status-text');
 
-  // Deklarasi 2 Tombol Interaktif Baru
   const btnRetake = document.getElementById('btn-action-retake');
   const btnNext = document.getElementById('btn-action-next');
 
@@ -47,7 +47,22 @@ function initPhotoboothStudio() {
 
   function getLayout() { return LAYOUTS[layoutSel.value]; }
 
-  // 1. ENGINE FILTER HALFTONE (DITHERING KASIR)
+  // AUDIO CORE ALIVE
+  function playBeepSound(isFinal) {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = isFinal ? 'sine' : 'square';
+      osc.frequency.setValueAtTime(isFinal ? 880 : 440, ctx.currentTime); 
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + (isFinal ? 0.3 : 0.08));
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(); osc.stop(ctx.currentTime + (isFinal ? 0.3 : 0.08));
+    } catch (e) {}
+  }
+
+  // FILTER ENGINE HALFTONE KASIR
   function applyDitherFilter(ctx, width, height) {
     const imgData = ctx.getImageData(0, 0, width, height);
     const d = imgData.data;
@@ -62,7 +77,7 @@ function initPhotoboothStudio() {
     ctx.putImageData(imgData, 0, 0);
   }
 
-  // 2. ENGINE FILTER RETRO HIGH-CONTRAST B&W
+  // FILTER RETRO B&W
   function applyGrayscaleFilter(ctx, width, height) {
     const imgData = ctx.getImageData(0, 0, width, height);
     const d = imgData.data;
@@ -76,7 +91,6 @@ function initPhotoboothStudio() {
     ctx.putImageData(imgData, 0, 0);
   }
 
-  // 3. PEMROSESAN FILTER
   function processActiveFilter() {
     if (!rawStrukCanvas) return null;
     const finalCanvas = document.getElementById('filter-canvas');
@@ -120,9 +134,13 @@ function initPhotoboothStudio() {
   if(btnFilterBW) btnFilterBW.addEventListener('click', () => setFilterUI('bw'));
   if(btnFilterDither) btnFilterDither.addEventListener('click', () => setFilterUI('dither'));
 
-  // 4. MANAGEMENT KAMERA
+  // LOCK CAMERA STREAM
   async function startCam(deviceId) {
-    if (stream) stream.getTracks().forEach(t => t.stop());
+    if (stream) {
+      // Stream dikunci agar tidak me-refresh select-option saat loop foto berjalan
+      if (shooting || isWaitingConfirmation) return; 
+      stream.getTracks().forEach(t => t.stop());
+    }
     try {
       const constraints = {
         video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'user', width: { ideal: 1280 } },
@@ -130,7 +148,10 @@ function initPhotoboothStudio() {
       };
       stream = await navigator.mediaDevices.getUserMedia(constraints);
       video.srcObject = stream;
-    } catch (e) { console.log('Kamera error'); }
+      if (camStatus) camStatus.textContent = 'Kamera Aktif';
+    } catch (e) {
+      if (camStatus) camStatus.textContent = 'Kamera error';
+    }
   }
 
   async function loadCameras() {
@@ -152,7 +173,6 @@ function initPhotoboothStudio() {
     currentActiveSlot = 0;
     isWaitingConfirmation = false;
     
-    // Kembalikan visibilitas tombol utama
     btnShoot.style.display = "inline-flex";
     btnShoot.disabled = false;
     shootText.textContent = "Ambil Foto #1 (Spasi)";
@@ -175,12 +195,10 @@ function initPhotoboothStudio() {
     stripPreview.innerHTML = '';
     for (let i = 0; i < layout.count; i++) {
       const container = document.createElement('div'); container.className = 'thumb-container';
-      
       if (i === currentActiveSlot && !isWaitingConfirmation) {
         container.style.borderColor = "#0076ff";
         container.style.boxShadow = "0 0 0 3px rgba(0, 118, 255, 0.2)";
       }
-
       const badge = document.createElement('div'); badge.className = 'thumb-badge'; badge.textContent = `#${i + 1}`; container.appendChild(badge);
       if (shots[i]) {
         const img = document.createElement('img'); img.className = 'thumb'; img.src = shots[i]; container.appendChild(img);
@@ -194,7 +212,6 @@ function initPhotoboothStudio() {
   function captureFrame() {
     const c = document.getElementById('shot-canvas');
     const vw = video.videoWidth || 1280; const vh = video.videoHeight || 960;
-    
     const targetAspect = 4 / 3;
     let sWidth = vw; let sHeight = vh; let sx = 0; let sy = 0;
     if (vw / vh > targetAspect) { sWidth = vh * targetAspect; sx = (vw - sWidth) / 2; } 
@@ -207,73 +224,49 @@ function initPhotoboothStudio() {
     return c.toDataURL('image/jpeg', 0.9);
   }
 
-  // SINKRONISASI PEMOTRETAN PER ELEMEN SLOT FOTO
- // SINKRONISASI PEMOTRETAN + AUDIO SYSTEM (TIMER & SHUTTER)
+  // ENGINE JEP RET INTI (AUDIO + TIMER SELALU AKTIF)
   async function handleShootAction() {
-    // Jika sedang dalam mode konfirmasi, kunci pemicu agar tidak double-run
-    if (shooting || isWaitingConfirmation) return;
+    if (shooting) return; 
     shooting = true;
     btnShoot.disabled = true;
     
-    if (btnDownload) btnDownload.style.display = 'none'; 
-    if (btnPrint) btnPrint.style.display = 'none'; 
-    if (printResult) printResult.style.display = 'none';
+    btnDownload.style.display = 'none'; btnPrint.style.display = 'none'; printResult.style.display = 'none';
 
     const timerDelay = parseInt(timerSel.value) || 0;
-    
-    // 1. JALANKAN LOGIKA AUDIO & VISUAL HITUNG MUNDUR (TIMER)
     if (timerDelay > 0 && countdownEl) {
       countdownEl.style.opacity = '1';
       for (let t = timerDelay; t > 0; t--) {
         countdownEl.textContent = t;
-        if (statusEl) statusEl.textContent = `Foto ke-${currentActiveSlot + 1} bersiap dalam ${t}...`;
-        
-        // MAINKAN SUARA BEEP DETIKAN TIMER
+        statusEl.textContent = `Foto ke-${currentActiveSlot + 1} bersiap dalam ${t}...`;
         playBeepSound(false); 
         await new Promise(r => setTimeout(r, 1000));
       }
       countdownEl.style.opacity = '0';
     }
     
-    // 2. MAINKAN SUARA SHUTTER JEPRETAN FINAL (NADA TINGGI)
     playBeepSound(true); 
-    
-    // Efek kilatan kamera (Flash)
     if (flash) {
       flash.style.opacity = '0.9'; 
       setTimeout(() => flash.style.opacity = '0', 120);
     }
     
-    // Ambil gambar ke slot memori aktif
     shots[currentActiveSlot] = captureFrame(); 
     renderThumbs();
     shooting = false;
     
-    // 3. MASUK KE MODE KONFIRMASI (MUNCULKAN TOMBOL INTERAKTIF)
     isWaitingConfirmation = true;
     btnShoot.style.display = "none";
     if(btnRetake) btnRetake.style.display = "inline-flex";
     if(btnNext) btnNext.style.display = "inline-flex";
     
-    if (statusEl) statusEl.innerHTML = `Foto #${currentActiveSlot + 1} tertangkap! <br>Silakan pilih aksi selanjutnya.`;
-  }
-    
-    // SELESAI POTRET: Sembunyikan tombol utama, munculkan opsi Ulangi / Lanjut
-    isWaitingConfirmation = true;
-    btnShoot.style.display = "none";
-    if(btnRetake) btnRetake.style.display = "inline-flex";
-    if(btnNext) btnNext.style.display = "inline-flex";
-    
-    statusEl.innerHTML = `Foto #${currentActiveSlot + 1} tertangkap! <br>Pilih tombol di bawah untuk menentukan aksi.`;
+    statusEl.innerHTML = `Foto #${currentActiveSlot + 1} tertangkap! <br>Pilih aksi selanjutnya di bawah.`;
   }
 
-  // AKSI JIKA KLIK LANJUT
-function handleNextAction() {
+  function handleNextAction() {
     if (!isWaitingConfirmation) return;
     const layout = getLayout();
     isWaitingConfirmation = false;
     
-    // Sembunyikan tombol konfirmasi, munculkan tombol utama
     if(btnRetake) btnRetake.style.display = "none";
     if(btnNext) btnNext.style.display = "none";
     btnShoot.style.display = "inline-flex";
@@ -281,47 +274,36 @@ function handleNextAction() {
     currentActiveSlot++;
     
     if (currentActiveSlot < layout.count) {
-      btnShoot.disabled = true;
       shootText.textContent = `Ambil Foto #${currentActiveSlot + 1} (Spasi)`;
       renderThumbs();
-      
-      // KUNCINYA DI SINI: Langsung memicu jepretan otomatis tanpa klik tombol hitam lagi
-      handleShootAction(); 
+      setTimeout(() => { handleShootAction(); }, 150);
     } else {
       btnShoot.disabled = true;
       shootText.textContent = "Selesai!";
-      statusEl.textContent = "Semua jepretan aman! Menyusun struk belanja kasir...";
+      statusEl.textContent = "Menyusun struk belanja kasir...";
       buildMasterStruk();
     }
   }
 
-  // AKSI JIKA KLIK RETAKE / ULANGI FOTO AKTIF
-function handleRetakeAction() {
+  function handleRetakeAction() {
     if (!isWaitingConfirmation) return;
     isWaitingConfirmation = false;
     
-    // Sembunyikan tombol konfirmasi, munculkan tombol utama
     if(btnRetake) btnRetake.style.display = "none";
     if(btnNext) btnNext.style.display = "none";
     btnShoot.style.display = "inline-flex";
-    btnShoot.disabled = true;
     
     shootText.textContent = `Foto Ulang #${currentActiveSlot + 1} (Spasi)`;
     renderThumbs();
-    
-    // KUNCINYA DI SINI: Langsung memicu jepretan ulang otomatis tanpa klik tombol hitam lagi
-    handleShootAction();
+    setTimeout(() => { handleShootAction(); }, 150);
   }
 
-  // Pasang Listener Klik Fisik Tombol Konfirmasi Baru
   if(btnNext) btnNext.addEventListener('click', (e) => { e.preventDefault(); handleNextAction(); });
   if(btnRetake) btnRetake.addEventListener('click', (e) => { e.preventDefault(); handleRetakeAction(); });
-  
   if(btnNext) btnNext.addEventListener('touchstart', (e) => { e.preventDefault(); handleNextAction(); }, { passive: false });
   if(btnRetake) btnRetake.addEventListener('touchstart', (e) => { e.preventDefault(); handleRetakeAction(); }, { passive: false });
 
-
-  // 5. ENGINE INTEGRASI STRUK KASIR
+  // STRUK GENERATOR BUILDER
   function buildMasterStruk() {
     const layout = getLayout();
     const isCalendar = (frameSel.value === 'calendar-2026');
@@ -392,22 +374,18 @@ function handleRetakeAction() {
     btnShoot.style.display = "inline-flex";
     btnShoot.disabled = false;
     shootText.textContent = "Sesi Selesai ✓";
-    statusEl.textContent = "Struk dimuat! Set filter kasir Anda di bawah.";
+    statusEl.textContent = "Struk dimuat!";
 
     const finalRenderedData = processActiveFilter();
     uploadKeCloudDanBuatQR(finalRenderedData);
   }
 
-  // 6. JALUR ONLINE QR CODE DETECTOR (IMGUR CLOUD SOLUTION)
+  // CLOUD UPLOADER QR (JALUR 1)
   function uploadKeCloudDanBuatQR(base64Image) {
     const qrContainer = document.getElementById("qrcode");
     if (!qrContainer) return;
-    
     qrContainer.innerHTML = ""; 
-    if (qrStatusText) {
-      qrStatusText.textContent = "⏳ Memproses QR Code Unduhan...";
-      qrStatusText.style.color = "#854d0e";
-    }
+    if (qrStatusText) { qrStatusText.textContent = "⏳ Memproses QR Code Unduhan..."; qrStatusText.style.color = "#854d0e"; }
 
     const cleanBase64 = base64Image.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
     const clientId = "644e5ccb483b8bd"; 
@@ -425,38 +403,19 @@ function handleRetakeAction() {
     .then(response => {
       if (response.success && response.data.link) {
         const shortUrl = response.data.link; 
-        
-        new QRCode(qrContainer, {
-          text: shortUrl,
-          width: 100,
-          height: 100,
-          colorDark : "#000000",
-          colorLight : "#ffffff",
-          correctLevel : QRCode.CorrectLevel.M
-        });
-
-        if (qrStatusText) {
-          qrStatusText.textContent = "✓ QR Code Aktif! Silakan scan untuk unduh gambar struk ke smartphone Anda.";
-          qrStatusText.style.color = "#15803d";
-        }
-      } else {
-        throw new Error();
-      }
+        new QRCode(qrContainer, { text: shortUrl, width: 100, height: 100, colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.M });
+        if (qrStatusText) { qrStatusText.textContent = "✓ QR Code Aktif! Silakan scan untuk unduh gambar struk."; qrStatusText.style.color = "#15803d"; }
+      } else { throw new Error(); }
     })
     .catch(() => {
       qrContainer.innerHTML = "<b style='color:#b91c1c;font-size:11px;'>OFFLINE</b>";
-      if (qrStatusText) {
-        qrStatusText.textContent = "⚠️ Internet terputus. Gunakan tombol 'Download JPG' di laptop.";
-        qrStatusText.style.color = "#b91c1c";
-      }
+      if (qrStatusText) { qrStatusText.textContent = "⚠️ Internet terputus. Gunakan 'Download JPG' di laptop."; qrStatusText.style.color = "#b91c1c"; }
     });
   }
 
-  // 7. OPERASIONAL TOMBOL UTAMA
+  // TRIGGER LOGIC
   function triggerShoot() {
-    if (!shooting && !btnShoot.disabled && !isWaitingConfirmation) {
-      handleShootAction();
-    }
+    if (!shooting && !btnShoot.disabled && !isWaitingConfirmation) { handleShootAction(); }
   }
 
   btnShoot.addEventListener('click', (e) => { e.preventDefault(); triggerShoot(); });
@@ -466,11 +425,7 @@ function handleRetakeAction() {
     if (e.code === 'Space') {
       if (document.activeElement.tagName !== 'SELECT') {
         e.preventDefault();
-        if (isWaitingConfirmation) {
-          handleNextAction(); // Di laptop, tekan spasi saat mode konfirmasi otomatis memilih LANJUT
-        } else {
-          triggerShoot();
-        }
+        if (isWaitingConfirmation) { handleNextAction(); } else { triggerShoot(); }
       }
     }
   });
@@ -478,9 +433,7 @@ function handleRetakeAction() {
   btnDownload.addEventListener('click', () => {
     const finalImageURL = processActiveFilter();
     if (!finalImageURL) return;
-    const a = document.createElement('a');
-    a.download = `photobooth-dkv-${Date.now()}.jpg`;
-    a.href = finalImageURL; a.click();
+    const a = document.createElement('a'); a.download = `photobooth-dkv-${Date.now()}.jpg`; a.href = finalImageURL; a.click();
   });
 
   btnPrint.addEventListener('click', () => {
