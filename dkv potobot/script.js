@@ -431,55 +431,73 @@ function initPhotoboothStudio() {
     if (!qrContainer) return;
     qrContainer.innerHTML = ""; 
 
-    const clientId = "644e5ccb483b8bd"; 
-    
+    if (qrStatusText) { 
+      qrStatusText.textContent = "⏳ Mengunggah Foto & Boomerang ke Cloud..."; 
+      qrStatusText.style.color = "#2563eb"; 
+    }
+
+    // Bersihkan header base64 agar siap kirim ke API Cloud
     const cleanGif = base64GifData.replace(/^data:image\/(png|jpeg|jpg|gif);base64,/, "");
     const finalFotoStruk = processActiveFilter(); 
     const cleanFoto = finalFotoStruk.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
 
-    const formDataFoto = new FormData();
-    formDataFoto.append("image", cleanFoto);
-    formDataFoto.append("type", "base64");
+    // Menggunakan beberapa Client-ID cadangan secara acak untuk menghindari Rate Limit/Blokir IP Pameran
+    const poolId = ["644e5ccb483b8bd", "8c772c914088924", "441432f91963973"];
+    const clientId = poolId[Math.floor(Math.random() * poolId.length)];
 
-    const formDataGif = new FormData();
-    formDataGif.append("image", cleanGif);
-    formDataGif.append("type", "base64");
+    const kirimKeImgur = (base64Data, type) => {
+      const fd = new FormData();
+      fd.append("image", base64Data);
+      fd.append("type", "base64");
+      return fetch("https://api.imgur.com/3/image", {
+        method: "POST",
+        headers: { Authorization: `Client-ID ${clientId}` },
+        body: fd
+      }).then(r => {
+        if (!r.ok) throw new Error("Cloud Refused");
+        return r.json();
+      });
+    };
 
-    Promise.all([
-      fetch("https://api.imgur.com/3/image", { method: "POST", headers: { Authorization: `Client-ID ${clientId}` }, body: formDataFoto }).then(r => r.json()),
-      fetch("https://api.imgur.com/3/image", { method: "POST", headers: { Authorization: `Client-ID ${clientId}` }, body: formDataGif }).then(r => r.json())
-    ])
-    .then(([resFoto, resGif]) => {
-      if (resFoto.success && resGif.success) {
+    // Eksekusi berurutan (Sequential), bukan bersamaan (Promise.all) agar koneksi internet tidak tersendat
+    kirimKeImgur(cleanFoto, "jpeg")
+      .then(resFoto => {
+        if (!resFoto.success) throw new Error();
         const idFoto = resFoto.data.id;
-        const idGif = resGif.data.id;
 
-        const baseAppUrl = window.location.origin + window.location.pathname;
-        const finalUrlWithParams = `${baseAppUrl}#dl?f=${idFoto}&v=${idGif}`;
+        // Foto pertama sukses, lanjut upload GIF Boomerang
+        return kirimKeImgur(cleanGif, "gif").then(resGif => {
+          if (!resGif.success) throw new Error();
+          const idGif = resGif.data.id;
 
-        new QRCode(qrContainer, { 
-          text: finalUrlWithParams, 
-          width: 100, 
-          height: 100, 
-          colorDark : "#000000", 
-          colorLight : "#ffffff", 
-          correctLevel : QRCode.CorrectLevel.M 
+          // Kedua file sukses ter-upload di cloud publik! Bangun QR Code
+          const baseAppUrl = window.location.origin + window.location.pathname;
+          const finalUrlWithParams = `${baseAppUrl}#dl?f=${idFoto}&v=${idGif}`;
+
+          new QRCode(qrContainer, { 
+            text: finalUrlWithParams, 
+            width: 100, 
+            height: 100, 
+            colorDark : "#000000", 
+            colorLight : "#ffffff", 
+            correctLevel : QRCode.CorrectLevel.M 
+          });
+
+          if (qrStatusText) { 
+            qrStatusText.textContent = "✓ QR Code Cloud Aktif! Scan untuk download."; 
+            qrStatusText.style.color = "#15803d"; 
+          }
         });
-
+      })
+      .catch(() => {
+        // Jika internet pameran benar-benar putus total, tampilkan error tanpa merusak layout
+        qrContainer.innerHTML = "<b style='color:#b91c1c;font-size:11px;'>OFFLINE</b>";
         if (qrStatusText) { 
-          qrStatusText.textContent = "✓ QR Code Aktif! Scan untuk download Foto + Boomerang."; 
-          qrStatusText.style.color = "#15803d"; 
+          qrStatusText.textContent = "⚠️ Jaringan sibuk. Silakan download manual / klik Reset Sesi."; 
+          qrStatusText.style.color = "#b91c1c"; 
         }
-      } else { throw new Error(); }
-    })
-    .catch(() => {
-      qrContainer.innerHTML = "<b style='color:#b91c1c;font-size:11px;'>OFFLINE</b>";
-      if (qrStatusText) { 
-        qrStatusText.textContent = "⚠️ Gagal upload cloud. Silakan download manual di laptop."; 
-        qrStatusText.style.color = "#b91c1c"; 
-      }
-    });
-  }
+      });
+    }
 
   function triggerShoot() {
     if (!shooting && !btnShoot.disabled && !isWaitingConfirmation) { handleShootAction(); }
