@@ -434,37 +434,106 @@ function initPhotoboothStudio() {
     });
   }
 
-  function uploadKeCloudDanBuatQR(base64Data) {
+ // ==========================================================================
+  // CORE ENGINE JALUR 1: INTERNET PARALEL UPLOADER & QR CODE GENERATOR
+  // ==========================================================================
+  function uploadKeCloudDanBuatQR(base64GifData) {
     const qrContainer = document.getElementById("qrcode");
     if (!qrContainer) return;
     qrContainer.innerHTML = ""; 
+    if (qrStatusText) { 
+      qrStatusText.textContent = "⏳ Memproses Link Foto & Video untuk Smartphone..."; 
+      qrStatusText.style.color = "#854d0e"; 
+    }
 
-    const cleanBase64 = base64Data.replace(/^data:image\/(png|jpeg|jpg|gif);base64,/, "");
     const clientId = "644e5ccb483b8bd"; 
+    
+    const cleanGif = base64GifData.replace(/^data:image\/(png|jpeg|jpg|gif);base64,/, "");
+    const finalFotoStruk = processActiveFilter(); 
+    const cleanFoto = finalFotoStruk.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
 
-    const formData = new FormData();
-    formData.append("image", cleanBase64);
-    formData.append("type", "base64");
+    const formDataFoto = new FormData();
+    formDataFoto.append("image", cleanFoto);
+    formDataFoto.append("type", "base64");
 
-    fetch("https://api.imgur.com/3/image", {
-      method: "POST",
-      headers: { Authorization: `Client-ID ${clientId}` },
-      body: formData
-    })
-    .then(res => res.json())
-    .then(response => {
-      if (response.success && response.data.link) {
-        // Imgur otomatis mengenali format ekstensi file .gif bergerak dengan sempurna!
-        const shortUrl = response.data.link; 
-        new QRCode(qrContainer, { text: shortUrl, width: 100, height: 100, colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.M });
-        if (qrStatusText) { qrStatusText.textContent = "✓ Boomerang GIF Aktif! Silakan scan untuk unduh versi gerak ke HP."; qrStatusText.style.color = "#15803d"; }
+    const formDataGif = new FormData();
+    formDataGif.append("image", cleanGif);
+    formDataGif.append("type", "base64");
+
+    // Upload Foto (.jpg) dan Video Boomerang (.gif) secara paralel bersamaan
+    Promise.all([
+      fetch("https://api.imgur.com/3/image", { method: "POST", headers: { Authorization: `Client-ID ${clientId}` }, body: formDataFoto }).then(r => r.json()),
+      fetch("https://api.imgur.com/3/image", { method: "POST", headers: { Authorization: `Client-ID ${clientId}` }, body: formDataGif }).then(r => r.json())
+    ])
+    .then(([resFoto, resGif]) => {
+      if (resFoto.success && resGif.success) {
+        // Ekstrak id unik dari link gambar yang berhasil diupload
+        const idFoto = resFoto.data.id;
+        const idGif = resGif.data.id;
+
+        // Racik URL dinamis membawa kedua parameter file menuju web online-mu
+        const baseAppUrl = window.location.origin + window.location.pathname;
+        const finalUrlWithParams = `${baseAppUrl}#dl?f=${idFoto}&v=${idGif}`;
+
+        // Render QR Code dengan link cerdas super pendek berisi penunjuk file
+        new QRCode(qrContainer, { 
+          text: finalUrlWithParams, 
+          width: 100, 
+          height: 100, 
+          colorDark : "#000000", 
+          colorLight : "#ffffff", 
+          correctLevel : QRCode.CorrectLevel.M 
+        });
+
+        if (qrStatusText) { 
+          qrStatusText.textContent = "✓ QR Code Siap! Scan untuk mengunduh Foto & Video di smartphone pengunjung."; 
+          qrStatusText.style.color = "#15803d"; 
+        }
       } else { throw new Error(); }
     })
     .catch(() => {
       qrContainer.innerHTML = "<b style='color:#b91c1c;font-size:11px;'>OFFLINE</b>";
-      if (qrStatusText) { qrStatusText.textContent = "⚠️ Offline. Gunakan 'Download JPG' di laptop."; qrStatusText.style.color = "#b91c1c"; }
+      if (qrStatusText) { 
+        qrStatusText.textContent = "⚠️ Internet terputus. Silakan unduh manual menggunakan tombol laptop."; 
+        qrStatusText.style.color = "#b91c1c"; 
+      }
     });
   }
+
+  // ==========================================================================
+  // ENGINE DETEKSY HP PENGUNJUNG: MEMBONGKAR PARAMETER QR CODE SECARA LIVE
+  // ==========================================================================
+  function periksaModePengunjungHP() {
+    const hash = window.location.hash;
+    if (hash && hash.startsWith('#dl')) {
+      // Sembunyikan container studio laptop agar tidak merusak layar HP
+      const appStudio = document.getElementById('photobooth-app');
+      const pageDownloadHP = document.getElementById('visitor-download-page');
+      
+      if (appStudio) appStudio.style.display = 'none';
+      if (pageDownloadHP) pageDownloadHP.style.display = 'flex';
+
+      // Ambil parameter id file foto dan gif dari hash link URL
+      try {
+        const paramsStr = hash.split('?')[1];
+        const searchParams = new URLSearchParams(paramsStr);
+        const idFoto = searchParams.get('f');
+        const idGif = searchParams.get('v');
+
+        const btnDlPhoto = document.getElementById('btn-dl-photo');
+        const btnDlVideo = document.getElementById('btn-dl-video');
+
+        // Sambungkan link tombol unduhan langsung ke server asset file aslinya
+        if (idFoto && btnDlPhoto) btnDlPhoto.href = `https://i.imgur.com/${idFoto}.jpg`;
+        if (idGif && btnDlVideo) btnDlVideo.href = `https://i.imgur.com/${idGif}.gif`;
+      } catch (e) {
+        alert("Waduh, tautan download foto tidak valid.");
+      }
+    }
+  }
+
+  // Jalankan detektor otomatis tepat setelah inisialisasi awal aplikasi
+  periksaModePengunjungHP();
 
   function triggerShoot() {
     if (!shooting && !btnShoot.disabled && !isWaitingConfirmation) { handleShootAction(); }
