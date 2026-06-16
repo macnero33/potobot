@@ -133,36 +133,63 @@ function initPhotoboothStudio() {
   if(btnFilterDither) btnFilterDither.addEventListener('click', () => setFilterUI('dither'));
 
   async function startCam(deviceId) {
+    // Jika sedang dalam sesi konfirmasi, jangan reset stream
+    if (shooting || isWaitingConfirmation) return; 
+
     if (stream) {
-      if (shooting || isWaitingConfirmation) return; 
       stream.getTracks().forEach(t => t.stop());
     }
+    
     try {
+      // Set konfigurasi standar agar kamera tidak macet saat inisialisasi
       const constraints = {
-        video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'user', width: { ideal: 1280 } },
+        video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'user' },
         audio: false
       };
+      
       stream = await navigator.mediaDevices.getUserMedia(constraints);
       video.srcObject = stream;
-      if (camStatus) camStatus.textContent = 'Kamera Aktif';
+      
+      // Pastikan video benar-benar berputar sebelum mengubah status
+      video.onloadedmetadata = () => {
+        video.play().catch(e => console.log("Play interrupted"));
+        if (camStatus) camStatus.textContent = 'Kamera Aktif';
+      };
     } catch (e) {
-      if (camStatus) camStatus.textContent = 'Kamera error';
+      console.error("Gagal startCam:", e);
+      if (camStatus) camStatus.textContent = 'Kamera error / sibuk';
     }
   }
 
   async function loadCameras() {
+    if (camStatus) camStatus.textContent = 'Mendeteksi...';
     try {
-      await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      // Request izin kamera secara bersih di awal
+      const initialStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      // Langsung matikan stream sementara setelah izin didapatkan agar device tidak sibuk
+      initialStream.getTracks().forEach(track => track.stop());
+
       const devices = await navigator.mediaDevices.enumerateDevices();
       const cams = devices.filter(d => d.kind === 'videoinput');
-      camSel.innerHTML = cams.map((c, i) => `<option value="${c.deviceId}">${c.label || 'Kamera ' + (i + 1)}</option>`).join('');
-      if (cams.length) startCam(cams[0].deviceId);
-    } catch (e) {}
-  }
+      
+      if (cams.length === 0) {
+        if (camSel) camSel.innerHTML = '<option value="">Kamera tidak ditemukan</option>';
+        if (camStatus) camStatus.textContent = 'No Camera';
+        return;
+      }
 
-  camSel.addEventListener('change', () => startCam(camSel.value));
-  layoutSel.addEventListener('change', () => resetSesiTotal());
-  frameSel.addEventListener('change', () => { if (shots.length === getLayout().count) buildMasterStruk(); });
+      if (camSel) {
+        camSel.innerHTML = cams.map((c, i) => `<option value="${c.deviceId}">${c.label || 'Kamera ' + (i + 1)}</option>`).join('');
+      }
+      
+      // Jalankan kamera pertama yang terdeteksi
+      await startCam(cams[0].deviceId);
+    } catch (e) {
+      console.error("Gagal loadCameras:", e);
+      if (camStatus) camStatus.textContent = 'Izin kamera ditolak';
+      if (camSel) camSel.innerHTML = '<option value="">Akses Kamera Ditolak</option>';
+    }
+  }
 
   function resetSesiTotal() {
     shots = [];
