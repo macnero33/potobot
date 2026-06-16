@@ -208,29 +208,55 @@ function initPhotoboothStudio() {
   }
 
   // SINKRONISASI PEMOTRETAN PER ELEMEN SLOT FOTO
+ // SINKRONISASI PEMOTRETAN + AUDIO SYSTEM (TIMER & SHUTTER)
   async function handleShootAction() {
+    // Jika sedang dalam mode konfirmasi, kunci pemicu agar tidak double-run
     if (shooting || isWaitingConfirmation) return;
     shooting = true;
     btnShoot.disabled = true;
     
-    btnDownload.style.display = 'none'; btnPrint.style.display = 'none'; printResult.style.display = 'none';
+    if (btnDownload) btnDownload.style.display = 'none'; 
+    if (btnPrint) btnPrint.style.display = 'none'; 
+    if (printResult) printResult.style.display = 'none';
 
     const timerDelay = parseInt(timerSel.value) || 0;
-    if (timerDelay > 0) {
+    
+    // 1. JALANKAN LOGIKA AUDIO & VISUAL HITUNG MUNDUR (TIMER)
+    if (timerDelay > 0 && countdownEl) {
       countdownEl.style.opacity = '1';
       for (let t = timerDelay; t > 0; t--) {
         countdownEl.textContent = t;
-        statusEl.textContent = `Foto ke-${currentActiveSlot + 1} bersiap dalam ${t}...`;
+        if (statusEl) statusEl.textContent = `Foto ke-${currentActiveSlot + 1} bersiap dalam ${t}...`;
+        
+        // MAINKAN SUARA BEEP DETIKAN TIMER
+        playBeepSound(false); 
         await new Promise(r => setTimeout(r, 1000));
       }
       countdownEl.style.opacity = '0';
     }
     
-    flash.style.opacity = '0.9'; setTimeout(() => flash.style.opacity = '0', 120);
+    // 2. MAINKAN SUARA SHUTTER JEPRETAN FINAL (NADA TINGGI)
+    playBeepSound(true); 
     
+    // Efek kilatan kamera (Flash)
+    if (flash) {
+      flash.style.opacity = '0.9'; 
+      setTimeout(() => flash.style.opacity = '0', 120);
+    }
+    
+    // Ambil gambar ke slot memori aktif
     shots[currentActiveSlot] = captureFrame(); 
     renderThumbs();
     shooting = false;
+    
+    // 3. MASUK KE MODE KONFIRMASI (MUNCULKAN TOMBOL INTERAKTIF)
+    isWaitingConfirmation = true;
+    btnShoot.style.display = "none";
+    if(btnRetake) btnRetake.style.display = "inline-flex";
+    if(btnNext) btnNext.style.display = "inline-flex";
+    
+    if (statusEl) statusEl.innerHTML = `Foto #${currentActiveSlot + 1} tertangkap! <br>Silakan pilih aksi selanjutnya.`;
+  }
     
     // SELESAI POTRET: Sembunyikan tombol utama, munculkan opsi Ulangi / Lanjut
     isWaitingConfirmation = true;
