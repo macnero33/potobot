@@ -31,6 +31,10 @@ function initPhotoboothStudio() {
   let stream = null;
   let rawStrukCanvas = null; 
   let currentFilter = 'dither'; 
+  
+  // Variabel baru untuk melacak antrean foto interaktif
+  let currentActiveSlot = 0; 
+  let isWaitingConfirmation = false; 
 
   const CAM_ASPECT = 4 / 3; 
   const BASE_WIDTH = 420;   
@@ -139,8 +143,10 @@ function initPhotoboothStudio() {
 
   function resetSesiTotal() {
     shots = [];
-    shootText.textContent = "Ambil Semua Foto (Spasi)";
-    statusEl.textContent = "Sesi kosong. Bersiap foto baru.";
+    currentActiveSlot = 0;
+    isWaitingConfirmation = false;
+    shootText.textContent = "Ambil Foto #1 (Spasi)";
+    statusEl.textContent = "Sesi kosong. Bersiap untuk jepretan pertama.";
     btnDownload.style.display = 'none'; btnPrint.style.display = 'none'; btnReset.style.display = 'none';
     printResult.style.display = 'none'; 
     rawStrukCanvas = null; currentFilter = 'dither';
@@ -155,6 +161,13 @@ function initPhotoboothStudio() {
     stripPreview.innerHTML = '';
     for (let i = 0; i < layout.count; i++) {
       const container = document.createElement('div'); container.className = 'thumb-container';
+      
+      // Beri tanda highlight warna biru pada slot yang sedang aktif difoto
+      if (i === currentActiveSlot && !isWaitingConfirmation) {
+        container.style.borderColor = "#0076ff";
+        container.style.boxShadow = "0 0 0 3px rgba(0, 118, 255, 0.2)";
+      }
+
       const badge = document.createElement('div'); badge.className = 'thumb-badge'; badge.textContent = `#${i + 1}`; container.appendChild(badge);
       if (shots[i]) {
         const img = document.createElement('img'); img.className = 'thumb'; img.src = shots[i]; container.appendChild(img);
@@ -165,70 +178,77 @@ function initPhotoboothStudio() {
     }
   }
 
-function captureFrame() {
+  function captureFrame() {
     const c = document.getElementById('shot-canvas');
-    const vw = video.videoWidth || 1280; 
-    const vh = video.videoHeight || 960;
+    const vw = video.videoWidth || 1280; const vh = video.videoHeight || 960;
     
-    // Hitung dimensi target 4:3 agar pas dengan template struk kasir
+    // Algoritma Center-Crop Anti-Gepeng Otomatis untuk iOS & Laptop
     const targetAspect = 4 / 3;
-    let sWidth = vw;
-    let sHeight = vh;
-    let sx = 0;
-    let sy = 0;
+    let sWidth = vw; let sHeight = vh; let sx = 0; let sy = 0;
+    if (vw / vh > targetAspect) { sWidth = vh * targetAspect; sx = (vw - sWidth) / 2; } 
+    else { sHeight = vw / targetAspect; sy = (vh - sHeight) / 2; }
 
-    // ALGORITMA CROPPING AUTOMATIS: Memotong paksa sensor panjang iOS agar jadi 4:3 proporsional
-    if (vw / vh > targetAspect) {
-      // Jika kamera terlalu lebar (seperti iPhone horizontal)
-      sWidth = vh * targetAspect;
-      sx = (vw - sWidth) / 2;
-    } else {
-      // Jika kamera terlalu tinggi (seperti iPad / Portrait)
-      sHeight = vw / targetAspect;
-      sy = (vh - sHeight) / 2;
-    }
-
-    // Set resolusi output canvas internal
-    c.width = 640; 
-    c.height = 480; 
-    
+    c.width = 640; c.height = 480;
     const ctx = c.getContext('2d');
-    
-    // Mirroring & Drawing dengan metode drawImage 9-parameter agar dipotong di tengah (Anti-Gepeng)
-    ctx.save(); 
-    ctx.translate(640, 0); 
-    ctx.scale(-1, 1);
-    ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, 640, 480); 
-    ctx.restore();
-    
+    ctx.save(); ctx.translate(640, 0); ctx.scale(-1, 1);
+    ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, 640, 480); ctx.restore();
     return c.toDataURL('image/jpeg', 0.9);
   }
 
+  // ALALUR INTERAKTIF BARU: MEMOTRET SATU PER SATU DENGAN SINKRONISASI KONFIRMASI
   async function handleShootAction() {
+    const layout = getLayout();
+    
+    // FASE A: JIKA SEDANG MENUNGGU KONFIRMASI RETAKE ATAU LANJUT
+    if (isWaitingConfirmation) {
+      // Kita buat konversi klik berurutan: Jika diklik lagi, artinya dia setuju LANJUT
+      isWaitingConfirmation = false;
+      currentActiveSlot++;
+      
+      if (currentActiveSlot < layout.count) {
+        shootText.textContent = `Ambil Foto #${currentActiveSlot + 1} (Spasi)`;
+        statusEl.textContent = `Bersiap untuk jepretan foto #${currentActiveSlot + 1}.`;
+        renderThumbs();
+      } else {
+        // Jika semua slot sudah selesai dikonfirmasi lanjut, eksekusi kompilasi struk
+        statusEl.textContent = "Semua jepretan aman! Menyusun struk belanja kasir...";
+        shootText.textContent = "Selesai!";
+        btnShoot.disabled = true;
+        buildMasterStruk();
+      }
+      return;
+    }
+
+    // FASE B: PROSES JEP RET FOTO AKTIF
     if (shooting) return;
-    const layout = getLayout(); shooting = true; btnShoot.disabled = true;
-    shots = []; renderThumbs();
+    shooting = true;
+    btnShoot.disabled = true;
+    
     btnDownload.style.display = 'none'; btnPrint.style.display = 'none'; printResult.style.display = 'none';
 
     const timerDelay = parseInt(timerSel.value) || 0;
-    for (let i = 0; i < layout.count; i++) {
-      if (timerDelay > 0) {
-        countdownEl.style.opacity = '1';
-        for (let t = timerDelay; t > 0; t--) {
-          countdownEl.textContent = t;
-          statusEl.textContent = `Foto ke-${i + 1} bersiap dalam ${t}...`;
-          await new Promise(r => setTimeout(r, 1000));
-        }
-        countdownEl.style.opacity = '0';
+    if (timerDelay > 0) {
+      countdownEl.style.opacity = '1';
+      for (let t = timerDelay; t > 0; t--) {
+        countdownEl.textContent = t;
+        statusEl.textContent = `Foto ke-${currentActiveSlot + 1} bersiap dalam ${t}...`;
+        await new Promise(r => setTimeout(r, 1000));
       }
-      flash.style.opacity = '0.9'; setTimeout(() => flash.style.opacity = '0', 120);
-      shots.push(captureFrame()); renderThumbs();
-      statusEl.textContent = `Foto ${i + 1}/${layout.count} tersimpan.`;
-      if (i < layout.count - 1) await new Promise(r => setTimeout(r, 1200));
+      countdownEl.style.opacity = '0';
     }
-    statusEl.textContent = "Menyusun struk belanja kasir...";
-    shooting = false; btnShoot.disabled = false;
-    buildMasterStruk();
+    
+    flash.style.opacity = '0.9'; setTimeout(() => flash.style.opacity = '0', 120);
+    
+    // Simpan hasil jepretan ke slot index aktif saat ini
+    shots[currentActiveSlot] = captureFrame(); 
+    renderThumbs();
+    shooting = false;
+    btnShoot.disabled = false;
+    
+    // MASUK KE MODE KONFIRMASI PER FOTO
+    isWaitingConfirmation = true;
+    shootText.innerHTML = `🟢 LANJUTKAN atau 🔴 RETAKE (#${currentActiveSlot + 1})`;
+    statusEl.innerHTML = `Foto #${currentActiveSlot + 1} selesai! <br><b>Tekan Spasi/Klik Tombol</b> untuk LANJUT, atau <b>Klik Kotak Slot Preview di Kanan</b> untuk FOTO ULANG jepretan ini.`;
   }
 
   // 5. ENGINE INTEGRASI STRUK KASIR
@@ -299,13 +319,15 @@ function captureFrame() {
 
     printResult.style.display = 'block';
     btnDownload.style.display = 'inline-flex'; btnPrint.style.display = 'inline-flex'; btnReset.style.display = 'inline-flex';
-    statusEl.textContent = "Struk dimuat!";
+    btnShoot.disabled = false;
+    shootText.textContent = "Sesi Selesai ✓";
+    statusEl.textContent = "Struk dimuat! Set filter kasir Anda di bawah.";
 
     const finalRenderedData = processActiveFilter();
     uploadKeCloudDanBuatQR(finalRenderedData);
   }
 
-  // 6. JALUR ONLINE QR CODE DETECTOR
+  // 6. JALUR ONLINE QR CODE DETECTOR (IMGUR CLOUD SOLUTION)
   function uploadKeCloudDanBuatQR(base64Image) {
     const qrContainer = document.getElementById("qrcode");
     if (!qrContainer) return;
@@ -359,31 +381,20 @@ function captureFrame() {
     });
   }
 
-  // 7. OPERASIONAL TOMBOL & GEAR GERAK (FLEXIBEL MOBILITY TOUCH)
+  // 7. OPERASIONAL TOMBOL & INTERACTIVE TRIGGER
   function triggerShoot() {
     if (!shooting && !btnShoot.disabled) {
       handleShootAction();
     }
   }
 
-  // Klik Mouse Laptop/PC
-  btnShoot.addEventListener('click', (e) => {
-    e.preventDefault();
-    triggerShoot();
-  });
+  btnShoot.addEventListener('click', (e) => { e.preventDefault(); triggerShoot(); });
+  btnShoot.addEventListener('touchstart', (e) => { e.preventDefault(); triggerShoot(); }, { passive: false });
 
-  // Layar Sentuh Jari iPhone/iPad (Anti-Delay iOS)
-  btnShoot.addEventListener('touchstart', (e) => {
-    e.preventDefault(); 
-    triggerShoot();
-  }, { passive: false });
-
-  // Hotkey Tombol Spasi Keyboard Fisik Laptop
   document.body.addEventListener('keydown', (e) => {
     if (e.code === 'Space') {
       if (document.activeElement.tagName !== 'SELECT') {
-        e.preventDefault(); 
-        triggerShoot();
+        e.preventDefault(); triggerShoot();
       }
     }
   });
@@ -399,29 +410,8 @@ function captureFrame() {
   btnPrint.addEventListener('click', () => {
     const imageToPrint = processActiveFilter();
     if (!imageToPrint) return;
-    
-    const doc = printIframe.contentWindow.document;
-    doc.open();
-    doc.write(`
-      <html>
-      <head>
-        <style>
-          @page { margin: 0; }
-          html, body { margin: 0; padding: 0; width: 100%; display: flex; justify-content: center; background: #fff; }
-          .print-box { width: 420px; }
-          img { width: 100%; height: auto; display: block; }
-        </style>
-      </head>
-      <body>
-        <div class="print-box"><img src="${imageToPrint}"></div>
-        <script>
-          window.onload = function() {
-            setTimeout(function() { window.print(); }, 200);
-          };
-        <\/script>
-      </body>
-      </html>
-    `);
+    const doc = printIframe.contentWindow.document; doc.open();
+    doc.write(`<html><head><style>@page{margin:0;}html,body{margin:0;padding:0;width:100%;display:flex;justify-content:center;} .box{width:420px;} img{width:100%;height:auto;display:block;}</style></head><body><div class="box"><img src="${imageToPrint}"></div><script>window.onload=function(){setTimeout(function(){window.print();},200);};<\/script></body></html>`);
     doc.close();
   });
 
