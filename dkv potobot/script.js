@@ -491,8 +491,8 @@ function initPhotoboothStudio() {
     const blobGif = base64ToBlob(base64GifData, "image/gif");
 
     Promise.all([
-      supabaseClient.storage.from('photobooth').upload(`photos/${fileId}.jpg`, blobFoto, { contentType: 'image/jpeg' }),
-      supabaseClient.storage.from('photobooth').upload(`videos/${fileId}.gif`, blobGif, { contentType: 'image/gif' })
+      supabaseClient.storage.from('Photoboth').upload(`photos/${fileId}.jpg`, blobFoto, { contentType: 'image/jpeg' }),
+      supabaseClient.storage.from('Photoboth').upload(`videos/${fileId}.gif`, blobGif, { contentType: 'image/gif' })
     ])
     .then(([resFoto, resGif]) => {
       if (resFoto.error || resGif.error) {
@@ -535,7 +535,7 @@ function initPhotoboothStudio() {
   function periksaModePengunjungHP() {
     const hash = window.location.hash;
     if (hash && (hash.startsWith('#dl') || hash.includes('?f='))) {
-      const appStudio = document.getElementById('photobooth-app');
+      const appStudio = document.getElementById('Photoboth-app');
       const pageDownloadHP = document.getElementById('visitor-download-page');
       
       if (appStudio) appStudio.style.display = 'none';
@@ -555,10 +555,10 @@ function initPhotoboothStudio() {
         const SUPABASE_URL = "https://xwismjpikwenkqrfeykn.supabase.co";
 
         if (pathFoto && btnDlPhoto) {
-          btnDlPhoto.href = `${SUPABASE_URL}/storage/v1/object/public/photobooth/${pathFoto}`;
+          btnDlPhoto.href = `${SUPABASE_URL}/storage/v1/object/public/Photoboth/${pathFoto}`;
         }
         if (pathGif && btnDlVideo) {
-          btnDlVideo.href = `${SUPABASE_URL}/storage/v1/object/public/photobooth/${pathGif}`;
+          btnDlVideo.href = `${SUPABASE_URL}/storage/v1/object/public/Photoboth/${pathGif}`;
         }
       } catch (e) {
         console.error(e);
