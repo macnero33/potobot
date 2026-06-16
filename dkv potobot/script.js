@@ -76,6 +76,7 @@ function initPhotoboothStudio() {
     ctx.putImageData(imgData, 0, 0);
   }
 
+  // RETRO GRAYSCALE CONTRAST
   function applyGrayscaleFilter(ctx, width, height) {
     const imgData = ctx.getImageData(0, 0, width, height);
     const d = imgData.data;
@@ -132,8 +133,8 @@ function initPhotoboothStudio() {
   if(btnFilterBW) btnFilterBW.addEventListener('click', () => setFilterUI('bw'));
   if(btnFilterDither) btnFilterDither.addEventListener('click', () => setFilterUI('dither'));
 
+  // CAMERA ENGINE
   async function startCam(deviceId) {
-    // Jika sedang dalam sesi konfirmasi, jangan reset stream
     if (shooting || isWaitingConfirmation) return; 
 
     if (stream) {
@@ -141,7 +142,6 @@ function initPhotoboothStudio() {
     }
     
     try {
-      // Set konfigurasi standar agar kamera tidak macet saat inisialisasi
       const constraints = {
         video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'user' },
         audio: false
@@ -150,7 +150,6 @@ function initPhotoboothStudio() {
       stream = await navigator.mediaDevices.getUserMedia(constraints);
       video.srcObject = stream;
       
-      // Pastikan video benar-benar berputar sebelum mengubah status
       video.onloadedmetadata = () => {
         video.play().catch(e => console.log("Play interrupted"));
         if (camStatus) camStatus.textContent = 'Kamera Aktif';
@@ -164,9 +163,7 @@ function initPhotoboothStudio() {
   async function loadCameras() {
     if (camStatus) camStatus.textContent = 'Mendeteksi...';
     try {
-      // Request izin kamera secara bersih di awal
       const initialStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-      // Langsung matikan stream sementara setelah izin didapatkan agar device tidak sibuk
       initialStream.getTracks().forEach(track => track.stop());
 
       const devices = await navigator.mediaDevices.enumerateDevices();
@@ -182,7 +179,6 @@ function initPhotoboothStudio() {
         camSel.innerHTML = cams.map((c, i) => `<option value="${c.deviceId}">${c.label || 'Kamera ' + (i + 1)}</option>`).join('');
       }
       
-      // Jalankan kamera pertama yang terdeteksi
       await startCam(cams[0].deviceId);
     } catch (e) {
       console.error("Gagal loadCameras:", e);
@@ -190,6 +186,10 @@ function initPhotoboothStudio() {
       if (camSel) camSel.innerHTML = '<option value="">Akses Kamera Ditolak</option>';
     }
   }
+
+  camSel.addEventListener('change', () => startCam(camSel.value));
+  layoutSel.addEventListener('change', () => resetSesiTotal());
+  frameSel.addEventListener('change', () => { if (shots.length === getLayout().count) buildMasterStruk(); });
 
   function resetSesiTotal() {
     shots = [];
@@ -204,7 +204,7 @@ function initPhotoboothStudio() {
     if(btnRetake) btnRetake.style.display = "none";
     if(btnNext) btnNext.style.display = "none";
     
-    statusEl.textContent = "Sesi kosong. Bersiap untuk jepretan pertama.";
+    statusEl.textContent = "Kamera siap. Tekan tombol atau spasi untuk mulai foto.";
     if(btnDownload) btnDownload.style.display = 'none'; 
     if(btnPrint) btnPrint.style.display = 'none'; 
     if(btnReset) btnReset.style.display = 'none';
@@ -454,10 +454,7 @@ function initPhotoboothStudio() {
   }
 
   // ==========================================================================
-  // LOGIKA CORE UPLOAD SUPABASE CLOUD (ANTI-BLOCK / ANTI-LIMIT)
-  // ==========================================================================
-// ==========================================================================
-  // LOGIKA CORE UPLOAD SUPABASE CLOUD (PERBAIKAN VARIABEL BENTROK - AMAN 100%)
+  // LOGIKA CORE UPLOAD SUPABASE CLOUD (PERBAIKAN TOTAL)
   // ==========================================================================
   function uploadKeCloudDanBuatQR(base64GifData) {
     const qrContainer = document.getElementById("qrcode");
@@ -469,14 +466,11 @@ function initPhotoboothStudio() {
       qrStatusText.style.color = "#2563eb"; 
     }
 
-    // 1. KONFIGURASI SUPABASE (Silakan ganti dengan data proyekmu sendiri)
     const SUPABASE_URL = "https://xwismjpikwenkqrfeykn.supabase.co"; 
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3aXNtanBpa3dlbmtxcmZleWtuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1OTY5NjYsImV4cCI6MjA5NzE3Mjk2Nn0.aRtM5WdBAZJE0Ma-UcqlkG5hnmqOqpUDiv3UUvi19r8";
     
-    // Perbaikan: Menggunakan nama variabel 'supabaseClient' agar tidak bentrok dengan library CDN
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // 2. Fungsi Pembantu Konversi Base64 menjadi Blob File
     const base64ToBlob = (base64Str, contentType) => {
       const byteCharacters = atob(base64Str.split(',')[1] || base64Str);
       const byteArrays = [];
@@ -492,12 +486,10 @@ function initPhotoboothStudio() {
       return new Blob(byteArrays, { type: contentType });
     };
 
-    // 3. Siapkan Data Blob File siap kirim
     const fileId = `dkv-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
     const blobFoto = base64ToBlob(processActiveFilter(), "image/jpeg");
     const blobGif = base64ToBlob(base64GifData, "image/gif");
 
-    // 4. Proses Upload Paralel ke Storage Supabase
     Promise.all([
       supabaseClient.storage.from('photobooth').upload(`photos/${fileId}.jpg`, blobFoto, { contentType: 'image/jpeg' }),
       supabaseClient.storage.from('photobooth').upload(`videos/${fileId}.gif`, blobGif, { contentType: 'image/gif' })
@@ -507,15 +499,12 @@ function initPhotoboothStudio() {
         throw new Error(resFoto.error?.message || resGif.error?.message);
       }
 
-      // Ambil ID jalur file yang sukses masuk ke storage
       const pathFoto = encodeURIComponent(`photos/${fileId}.jpg`);
       const pathGif = encodeURIComponent(`videos/${fileId}.gif`);
 
-      // Bangun URL QR Code mengarah ke web pameran kamu dengan membawa parameter Supabase
       const baseAppUrl = window.location.origin + window.location.pathname;
       const finalUrlWithParams = `${baseAppUrl}#dl?f=${pathFoto}&v=${pathGif}`;
 
-      // Cetak QR Code
       new QRCode(qrContainer, { 
         text: finalUrlWithParams, 
         width: 100, 
@@ -563,7 +552,6 @@ function initPhotoboothStudio() {
         const btnDlPhoto = document.getElementById('btn-dl-photo');
         const btnDlVideo = document.getElementById('btn-dl-video');
 
-        // PENTING: Masukkan URL Supabase milikmu di sini agar HP pengunjung bisa mengunduh langsung
         const SUPABASE_URL = "https://xwismjpikwenkqrfeykn.supabase.co";
 
         if (pathFoto && btnDlPhoto) {
@@ -577,46 +565,6 @@ function initPhotoboothStudio() {
       }
     }
   }
-
-    // Eksekusi berurutan (Sequential), bukan bersamaan (Promise.all) agar koneksi internet tidak tersendat
-    kirimKeImgur(cleanFoto, "jpeg")
-      .then(resFoto => {
-        if (!resFoto.success) throw new Error();
-        const idFoto = resFoto.data.id;
-
-        // Foto pertama sukses, lanjut upload GIF Boomerang
-        return kirimKeImgur(cleanGif, "gif").then(resGif => {
-          if (!resGif.success) throw new Error();
-          const idGif = resGif.data.id;
-
-          // Kedua file sukses ter-upload di cloud publik! Bangun QR Code
-          const baseAppUrl = window.location.origin + window.location.pathname;
-          const finalUrlWithParams = `${baseAppUrl}#dl?f=${idFoto}&v=${idGif}`;
-
-          new QRCode(qrContainer, { 
-            text: finalUrlWithParams, 
-            width: 100, 
-            height: 100, 
-            colorDark : "#000000", 
-            colorLight : "#ffffff", 
-            correctLevel : QRCode.CorrectLevel.M 
-          });
-
-          if (qrStatusText) { 
-            qrStatusText.textContent = "✓ QR Code Cloud Aktif! Scan untuk download."; 
-            qrStatusText.style.color = "#15803d"; 
-          }
-        });
-      })
-      .catch(() => {
-        // Jika internet pameran benar-benar putus total, tampilkan error tanpa merusak layout
-        qrContainer.innerHTML = "<b style='color:#b91c1c;font-size:11px;'>OFFLINE</b>";
-        if (qrStatusText) { 
-          qrStatusText.textContent = "⚠️ Jaringan sibuk. Silakan download manual / klik Reset Sesi."; 
-          qrStatusText.style.color = "#b91c1c"; 
-        }
-      });
-    }
 
   function triggerShoot() {
     if (!shooting && !btnShoot.disabled && !isWaitingConfirmation) { handleShootAction(); }
@@ -652,34 +600,7 @@ function initPhotoboothStudio() {
     });
   }
 
-  function periksaModePengunjungHP() {
-    const hash = window.location.hash;
-    if (hash && (hash.startsWith('#dl') || hash.includes('?f='))) {
-      const appStudio = document.getElementById('photobooth-app');
-      const pageDownloadHP = document.getElementById('visitor-download-page');
-      
-      if (appStudio) appStudio.style.display = 'none';
-      if (pageDownloadHP) pageDownloadHP.style.display = 'flex';
-
-      try {
-        const bagianParameter = hash.includes('?') ? hash.split('?')[1] : '';
-        if (!bagianParameter) return;
-
-        const searchParams = new URLSearchParams(bagianParameter);
-        const idFoto = searchParams.get('f');
-        const idGif = searchParams.get('v');
-
-        const btnDlPhoto = document.getElementById('btn-dl-photo');
-        const btnDlVideo = document.getElementById('btn-dl-video');
-
-        if (idFoto && btnDlPhoto) btnDlPhoto.href = `https://i.imgur.com/${idFoto}.jpg`;
-        if (idGif && btnDlVideo) btnDlVideo.href = `https://i.imgur.com/${idGif}.gif`;
-      } catch (e) {
-        console.error(e);
-      }
-    }
-  }
-
+  // Eksekusi fungsi utama di paling bawah
   loadCameras();
   periksaModePengunjungHP();
   renderThumbs();
